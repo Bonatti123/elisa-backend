@@ -61,7 +61,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         ordering = ["username"]  # Ordenamiento por nombre de usuario
 
     def clean(self):
-        """Valida que el email sea único en el sistema"""
+        """Valida la unicidad del username y email antes de guardar"""
+        if User.objects.filter(username=self.username).exclude(pk=self.pk).exists():  # Verificar si el username ya está registrado
+            raise ValidationError({"username": "El nombre de usuario ya existe en el sistema"})
         if self.email and User.objects.filter(email=self.email).exclude(pk=self.pk).exists():  # Verificar si el email ya está registrado
             raise ValidationError({"email": "El correo electrónico ya está registrado en el sistema"})
 
