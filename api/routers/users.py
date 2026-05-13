@@ -70,33 +70,33 @@ def create_user(body: UserCreateRequest, current_user: User = Depends(get_curren
 @router.get("/users", response_model=UserListResponse)
 def list_users(
     current_user: User = Depends(get_current_user),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    search: str = Query("", max_length=100),
-    is_active: bool | None = None,
-    role_id: str | None = None,
+    page: int = Query(1, ge=1),  # Número de página para paginación
+    page_size: int = Query(20, ge=1, le=100),  # Cantidad de resultados por página
+    search: str = Query("", max_length=100),  # Término de búsqueda por nombre, email o username
+    is_active: bool | None = None,  # Filtrar por estado activo/inactivo del colaborador
+    role_id: str | None = None,  # Filtrar por rol específico
 ):
-    """Listar colaboradores con paginación, búsqueda y filtros"""
+    """Listar colaboradores con paginación, búsqueda y filtro opcional por is_active"""
     # Solo el personal autorizado puede listar colaboradores
     if not current_user.is_staff:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo personal autorizado")
 
-    # Construir filtros dinámicos según los parámetros de consulta
+    # Construir filtros dinámicos según los parámetros de consulta recibidos
     filters = Q()
-    if search:
+    if search:  # Búsqueda por username, nombre, apellido o email
         filters &= Q(username__icontains=search) | Q(
             first_name__icontains=search
         ) | Q(last_name__icontains=search) | Q(email__icontains=search)
-    if is_active is not None:
+    if is_active is not None:  # Filtro opcional por estado activo o inactivo
         filters &= Q(is_active=is_active)
-    if role_id:
+    if role_id:  # Filtro opcional por rol
         filters &= Q(role_id=role_id)
 
-    # Ejecutar consulta con filtros y relaciones
-    queryset = User.objects.filter(filters).select_related("role").order_by("username")
-    total = queryset.count()
+    # Ejecutar consulta con filtros y relaciones para evitar consultas N+1
+    queryset = User.objects.filter(filters).select_related("role", "collaborator_profile").order_by("username")
+    total = queryset.count()  # Total de resultados para la paginación
 
-    # Paginar resultados
+    # Paginar resultados usando offset/limit
     offset = (page - 1) * page_size
     users = queryset[offset : offset + page_size]
 
