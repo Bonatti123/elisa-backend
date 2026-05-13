@@ -124,13 +124,14 @@ def me(current_user: User = Depends(get_current_user)):
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: str, current_user: User = Depends(get_current_user)):
-    """Ver detalle de un colaborador por su ID"""
+    """Ver detalle de un colaborador por su ID incluyendo datos del perfil Collaborator"""
     # El usuario puede ver su propio perfil; el staff puede ver cualquier perfil
     if not current_user.is_staff and str(current_user.id) != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso")
 
     try:
-        user = User.objects.select_related("role").get(id=user_id)
+        # Buscar el usuario con relaciones incluidas para evitar consultas adicionales
+        user = User.objects.select_related("role", "collaborator_profile").get(id=user_id)
     except User.DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador no encontrado")
 
