@@ -8,7 +8,6 @@ from api.schemas.users import (
     UserResponse,
     UserListResponse,
 )
-from api.schemas.auth import UserResponse as AuthUserResponse
 from api.routers.auth import get_current_user
 from clients.models import User, Role, Collaborator
 
@@ -108,18 +107,12 @@ def list_users(
     )
 
 
-@router.get("/users/me", response_model=AuthUserResponse)
+@router.get("/users/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
-    """Consultar el colaborador autenticado actualmente"""
-    return AuthUserResponse(
-        id=str(current_user.id),
-        username=current_user.username,
-        email=current_user.email,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        role=current_user.role.name if current_user.role else None,
-        is_active=current_user.is_active,
-    )
+    """Devuelve los datos completos del colaborador autenticado incluyendo perfil Collaborator"""
+    # Recargar el usuario con relaciones incluidas para obtener el perfil completo
+    user = User.objects.select_related("role", "collaborator_profile").get(id=current_user.id)
+    return _user_to_response(user)
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)
