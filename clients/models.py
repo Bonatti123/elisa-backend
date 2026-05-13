@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
 
@@ -69,6 +70,7 @@ class Collaborator(models.Model):
         User, on_delete=models.CASCADE, related_name="collaborator_profile"  # Vinculación al usuario de autenticación del sistema
     )
     phone = models.CharField(max_length=20, blank=True, default="")  # Teléfono de contacto del colaborador
+    document_number = models.CharField(max_length=50, unique=True, null=True, blank=True, default=None)  # Número de documento único del colaborador (INE, RFC, etc.)
     area = models.CharField(max_length=150, blank=True, default="")  # Área o departamento al que pertenece el colaborador
     cupe = models.CharField(max_length=50, blank=True, default="")  # Identificador CUPE del colaborador en el sistema
     hire_date = models.DateField(null=True, blank=True)  # Fecha en que el colaborador fue contratado
@@ -81,6 +83,12 @@ class Collaborator(models.Model):
         ordering = ["user__first_name", "user__last_name"]  # Ordenamiento por nombre del colaborador
         verbose_name = "Colaborador"  # Nombre singular en el admin de Django
         verbose_name_plural = "Colaboradores"  # Nombre plural en el admin de Django
+
+    def clean(self):
+        """Valida que el document_number sea único antes de guardar"""
+        if self.document_number and Collaborator.objects.filter(document_number=self.document_number).exclude(pk=self.pk).exists():
+            raise ValidationError({"document_number": "El número de documento ya existe en el sistema"})
+
     def save(self, *args, **kwargs):
         """Genera automáticamente el CUPE con prefijo ELO si no tiene uno asignado"""
         if not self.cupe:  # Solo generar si el colaborador no tiene CUPE asignado
