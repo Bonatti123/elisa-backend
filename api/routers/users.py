@@ -167,6 +167,8 @@ def update_user(
     if body.is_active is not None:  # Cambiar estado del colaborador
         if not current_user.is_staff:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo personal autorizado")
+        if body.is_active is False and user.is_superuser:  # Verificar que no sea el último superadmin activo
+            _check_last_superadmin(user)
         user.is_active = body.is_active
     if body.role_id is not None:  # Cambiar rol del colaborador
         if not current_user.is_staff:
@@ -214,9 +216,23 @@ def deactivate_user(user_id: str, current_user: User = Depends(get_current_user)
     if str(user.id) == str(current_user.id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No puedes darte de baja a ti mismo")
 
+    # Verificar que no se esté desactivando al último superadmin activo del sistema
+    if user.is_superuser:
+        _check_last_superadmin(user)
+
     user.is_active = False  # Marcar como inactivo en lugar de eliminar el registro
     user.save()
     return None  # Respuesta 204 No Content sin cuerpo
+
+
+def _check_last_superadmin(user: User):
+    """Valida que no se esté desactivando al único superadmin activo del sistema"""
+    superadmins_activos = User.objects.filter(is_superuser=True, is_active=True).count()
+    if superadmins_activos <= 1:  # Si solo queda un superadmin activo, no se permite desactivarlo
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede desactivar al único superadmin activo del sistema"
+        )
 
 
 def _get_collaborator_profile(user: User):
