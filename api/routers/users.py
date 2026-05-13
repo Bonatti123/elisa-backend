@@ -135,34 +135,40 @@ def get_user(user_id: str, current_user: User = Depends(get_current_user)):
 def update_user(
     user_id: str, body: UserUpdateRequest, current_user: User = Depends(get_current_user)
 ):
-    """Editar los datos de un colaborador"""
+    """Editar datos del colaborador incluyendo contraseña, rol y perfil Collaborator"""
     # El usuario puede editar su propio perfil; el staff puede editar cualquier perfil
     if not current_user.is_staff and str(current_user.id) != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso")
 
     try:
-        user = User.objects.select_related("role").get(id=user_id)
+        # Buscar el usuario con relaciones incluidas para edición
+        user = User.objects.select_related("role", "collaborator_profile").get(id=user_id)
     except User.DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador no encontrado")
 
-    # Actualizar solo los campos que vienen en la solicitud
-    if body.username is not None:
+    # Obtener o crear el perfil Collaborator si no existe
+    profile, _ = Collaborator.objects.get_or_create(user=user)
+
+    # Actualizar solo los campos del usuario que vienen en la solicitud
+    if body.username is not None:  # Cambiar nombre de usuario
         if User.objects.filter(username=body.username).exclude(id=user_id).exists():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El username ya existe")
         user.username = body.username
-    if body.email is not None:
+    if body.email is not None:  # Cambiar correo electrónico
+        if body.email and User.objects.filter(email=body.email).exclude(id=user_id).exists():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El email ya existe")
         user.email = body.email
-    if body.first_name is not None:
+    if body.first_name is not None:  # Cambiar nombre
         user.first_name = body.first_name
-    if body.last_name is not None:
+    if body.last_name is not None:  # Cambiar apellido
         user.last_name = body.last_name
-    if body.password is not None:
+    if body.password is not None:  # Cambiar contraseña con hash bcrypt
         user.set_password(body.password)
-    if body.is_active is not None:
+    if body.is_active is not None:  # Cambiar estado del colaborador
         if not current_user.is_staff:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo personal autorizado")
         user.is_active = body.is_active
-    if body.role_id is not None:
+    if body.role_id is not None:  # Cambiar rol del colaborador
         if not current_user.is_staff:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo personal autorizado")
         try:
@@ -172,6 +178,23 @@ def update_user(
         user.role = role
 
     user.save()
+
+    # Actualizar los campos del perfil Collaborator si vienen en la solicitud
+    if body.phone is not None:  # Actualizar teléfono de contacto
+        profile.phone = body.phone
+    if body.area is not None:  # Actualizar área o departamento
+        profile.area = body.area
+    if body.document_number is not None:  # Actualizar número de documento
+        if body.document_number and Collaborator.objects.filter(document_number=body.document_number).exclude(pk=profile.pk).exists():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El número de documento ya existe")
+        profile.document_number = body.document_number
+    if body.hire_date is not None:  # Actualizar fecha de contratación
+        profile.hire_date = body.hire_date
+    if body.notes is not None:  # Actualizar notas adicionales
+        profile.notes = body.notes
+
+    profile.save()
+
     return _user_to_response(user)
 
 
