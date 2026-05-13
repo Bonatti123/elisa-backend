@@ -37,27 +37,33 @@ class Role(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(blank=True, default="")
-    first_name = models.CharField(max_length=150, blank=True, default="")
-    last_name = models.CharField(max_length=150, blank=True, default="")
+    """Modelo personalizado de usuario para el sistema ERP ELISA - ELOMUX"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # Identificador único del usuario
+    username = models.CharField(max_length=150, unique=True)  # Nombre de usuario para inicio de sesión
+    email = models.EmailField(unique=True, null=True, blank=True, default=None)  # Correo electrónico único del colaborador en el sistema
+    first_name = models.CharField(max_length=150, blank=True, default="")  # Nombre del colaborador
+    last_name = models.CharField(max_length=150, blank=True, default="")  # Apellido del colaborador
     role = models.ForeignKey(
-        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
+        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"  # Rol asignado al colaborador
     )
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)  # Indica si el colaborador está activo en el sistema
+    is_staff = models.BooleanField(default=False)  # Indica si el colaborador tiene acceso al panel de administración
+    created_at = models.DateTimeField(auto_now_add=True)  # Fecha y hora de creación del registro
+    updated_at = models.DateTimeField(auto_now=True)  # Fecha y hora de la última modificación del registro
 
     objects = UserManager()
 
-    USERNAME_FIELD = "username"
+    USERNAME_FIELD = "username"  # Campo usado para autenticación
     REQUIRED_FIELDS = []
 
     class Meta:
-        db_table = "users"
-        ordering = ["username"]
+        db_table = "users"  # Nombre de la tabla en la base de datos
+        ordering = ["username"]  # Ordenamiento por nombre de usuario
+
+    def clean(self):
+        """Valida que el email sea único en el sistema"""
+        if self.email and User.objects.filter(email=self.email).exclude(pk=self.pk).exists():  # Verificar si el email ya está registrado
+            raise ValidationError({"email": "El correo electrónico ya está registrado en el sistema"})
 
     def __str__(self):
         return self.username
