@@ -200,23 +200,23 @@ def update_user(
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def deactivate_user(user_id: str, current_user: User = Depends(get_current_user)):
-    """Dar de baja lógica a un colaborador (is_active=False)"""
-    # Solo el personal autorizado puede dar de baja
+    """Dar de baja lógica a un colaborador estableciendo is_active=False"""
+    # Solo el personal autorizado (staff) puede dar de baja a otros colaboradores
     if not current_user.is_staff:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo personal autorizado")
 
     try:
-        user = User.objects.get(id=user_id)
+        user = User.objects.get(id=user_id)  # Buscar el colaborador por su ID único
     except User.DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador no encontrado")
 
-    # Evitar que el usuario se dé de baja a sí mismo
+    # Evitar que el usuario se dé de baja a sí mismo por seguridad
     if str(user.id) == str(current_user.id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No puedes darte de baja a ti mismo")
 
-    user.is_active = False
+    user.is_active = False  # Marcar como inactivo en lugar de eliminar el registro
     user.save()
-    return None
+    return None  # Respuesta 204 No Content sin cuerpo
 
 
 def _get_collaborator_profile(user: User):
