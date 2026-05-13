@@ -81,6 +81,17 @@ class Collaborator(models.Model):
         ordering = ["user__first_name", "user__last_name"]  # Ordenamiento por nombre del colaborador
         verbose_name = "Colaborador"  # Nombre singular en el admin de Django
         verbose_name_plural = "Colaboradores"  # Nombre plural en el admin de Django
+    def save(self, *args, **kwargs):
+        """Genera automáticamente el CUPE con prefijo ELO si no tiene uno asignado"""
+        if not self.cupe:  # Solo generar si el colaborador no tiene CUPE asignado
+            ultimo = Collaborator.objects.order_by("-created_at").first()  # Obtener el último colaborador registrado
+            if ultimo and ultimo.cupe and ultimo.cupe.startswith("ELO-"):  # Verificar si ya existe un CUPE previo con prefijo ELO
+                numero = int(ultimo.cupe.replace("ELO-", "")) + 1  # Incrementar el número del último CUPE
+            else:
+                numero = 1  # Si no hay colaboradores previos, empezar desde 1
+            self.cupe = f"ELO-{numero:05d}"  # Asignar CUPE con formato de 5 dígitos (ej: ELO-00001)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         """Devuelve el nombre completo del colaborador o su username si no tiene nombre"""
         return f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
