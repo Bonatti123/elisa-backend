@@ -61,7 +61,7 @@ class Plan(models.Model):
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(blank=True, default="")
+    email = models.EmailField(unique=True, blank=True, default="")
     first_name = models.CharField(max_length=150, blank=True, default="")
     last_name = models.CharField(max_length=150, blank=True, default="")
     role = models.ForeignKey(

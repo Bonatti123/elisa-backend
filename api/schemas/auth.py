@@ -24,3 +24,9 @@ class UserResponse(BaseModel):
     last_name: str
     role: str | None = None
     is_active: bool
+
+
+class EmailValidoResponse(BaseModel):
+    """Respuesta de validación de email."""
+    disponible: bool
+    mensaje: str

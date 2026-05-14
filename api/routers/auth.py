@@ -4,12 +4,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
+from fastapi import Query
 
 from api.schemas.auth import (
     LoginRequest,
     TokenResponse,
     RefreshRequest,
     UserResponse,
+    EmailValidoResponse,
 )
 from clients.models import User
 
@@ -144,4 +146,26 @@ def me(user: User = Depends(get_current_user)):
         last_name=user.last_name,
         role=user.role.name if user.role else None,
         is_active=user.is_active,
+    )
+
+
+@router.get(
+    "/validar-email",
+    response_model=EmailValidoResponse,
+    summary="Validar unicidad de email",
+    description="Verifica si un email ya está registrado en el sistema.",
+)
+def validar_email(
+    email: str = Query(..., description="Email a verificar"),
+):
+    """Valida que el email no esté registrado por otro usuario."""
+    existe = User.objects.filter(email=email).exists()
+    if existe:
+        return EmailValidoResponse(
+            disponible=False,
+            mensaje="El email ya está registrado por otro usuario",
+        )
+    return EmailValidoResponse(
+        disponible=True,
+        mensaje="El email está disponible",
     )
