@@ -31,3 +31,18 @@ class ClientesPorPlanItem(BaseModel):
 class ClientesPorPlanResponse(BaseModel):
     total: int
     datos: list[ClientesPorPlanItem]
+
+
+class PagosVencidosItem(BaseModel):
+    """Item de pago vencido para el dashboard."""
+    usuario: str
+    monto: float
+    fecha_vencimiento: str
+    dias_vencido: int
+
+
+class PagosVencidosResponse(BaseModel):
+    """Resumen de pagos vencidos."""
+    cantidad_total: int
+    monto_total: float
+    datos: list[PagosVencidosItem]

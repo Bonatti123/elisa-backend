@@ -35,6 +35,35 @@ class Role(models.Model):
         return self.name
 
 
+class Payment(models.Model):
+    """Modelo que representa un pago de cliente."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="payments"
+    )
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_vencimiento = models.DateField()
+    fecha_pago = models.DateField(null=True, blank=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=[
+            ("pendiente", "Pendiente"),
+            ("pagado", "Pagado"),
+            ("vencido", "Vencido"),
+        ],
+        default="pendiente",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "payments"
+        ordering = ["-fecha_vencimiento"]
+
+    def __str__(self):
+        return f"Pago {self.user.username} - {self.monto} ({self.estado})"
+
+
 class Plan(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nombre = models.CharField(max_length=100)

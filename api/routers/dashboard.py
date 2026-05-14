@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth, TruncYear
 
 from api.schemas.dashboard import (
@@ -10,8 +10,10 @@ from api.schemas.dashboard import (
     ClientesPorEstadoResponse,
     ClientesPorPlanItem,
     ClientesPorPlanResponse,
+    PagosVencidosItem,
+    PagosVencidosResponse,
 )
-from clients.models import User
+from clients.models import User, Payment
 from api.routers.auth import get_current_user
 
 router = APIRouter()
@@ -123,3 +125,39 @@ def clientes_por_plan(
     total = sum(item.cantidad for item in datos)
 
     return ClientesPorPlanResponse(total=total, datos=datos)
+
+
+@router.get(
+    "/pagos-vencidos",
+    response_model=PagosVencidosResponse,
+    summary="Pagos vencidos",
+    description="Retorna el monto total y la cantidad de pagos vencidos con detalle.",
+)
+def pagos_vencidos(
+    user=Depends(get_current_user),
+):
+    """Retorna la métrica de pagos vencidos con monto y cantidad."""
+    hoy = datetime.now(timezone.utc).date()
+    qs = Payment.objects.filter(
+        estado="vencido",
+        fecha_vencimiento__lt=hoy,
+    ).select_related("user")
+
+    datos = [
+        PagosVencidosItem(
+            usuario=item.user.username,
+            monto=float(item.monto),
+            fecha_vencimiento=item.fecha_vencimiento.isoformat(),
+            dias_vencido=(hoy - item.fecha_vencimiento).days,
+        )
+        for item in qs
+    ]
+
+    monto_total = sum(item.monto for item in datos)
+    cantidad_total = len(datos)
+
+    return PagosVencidosResponse(
+        cantidad_total=cantidad_total,
+        monto_total=monto_total,
+        datos=datos,
+    )
