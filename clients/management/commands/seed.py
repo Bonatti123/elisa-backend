@@ -30,14 +30,23 @@ class Command(BaseCommand):
         if not User.objects.filter(username="bonatti123").exists():
             User.objects.create_user(
                 username="bonatti123",
-                password="bonatti123",
+                password="admin123",
                 email="bonatti@elomux.com",
                 first_name="Bon",
                 last_name="Atti",
                 role=superadmin_role,
+                status="activo",
                 is_staff=True,
                 is_superuser=True,
             )
             self.stdout.write(self.style.SUCCESS("Usuario Superadmin 'bonatti123' creado"))
         else:
             self.stdout.write("El usuario 'bonatti123' ya existe")
+
+        # Actualizar contraseña del usuario existente si es necesario
+        user = User.objects.get(username="bonatti123")
+        if not user.check_password("admin123"):
+            user.set_password("admin123")
+            user.status = "activo"
+            user.save()
+            self.stdout.write(self.style.SUCCESS("Contraseña actualizada a admin123"))
