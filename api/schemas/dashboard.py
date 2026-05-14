@@ -46,3 +46,20 @@ class PagosVencidosResponse(BaseModel):
     cantidad_total: int
     monto_total: float
     datos: list[PagosVencidosItem]
+
+
+class ReporteItem(BaseModel):
+    """Item de reporte agregado por período."""
+    periodo: str
+    clientes_nuevos: int = 0
+    pagos_realizados: int = 0
+    monto_pagos: float = 0.0
+
+
+class ReporteResponse(BaseModel):
+    """Reporte general con agregación por período."""
+    tipo_periodo: str
+    total_clientes_nuevos: int
+    total_pagos: int
+    total_monto: float
+    datos: list[ReporteItem]
