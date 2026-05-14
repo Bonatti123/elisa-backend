@@ -44,6 +44,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.ForeignKey(
         Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
     )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("activo", "Activo"),
+            ("inactivo", "Inactivo"),
+            ("en_desarrollo", "En desarrollo"),
+        ],
+        default="activo",
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

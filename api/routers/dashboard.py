@@ -63,3 +63,31 @@ def clientes_nuevos(
     total = sum(item.cantidad for item in datos)
 
     return ClientesNuevosResponse(total=total, datos=datos)
+
+
+@router.get(
+    "/clientes-por-estado",
+    response_model=ClientesPorEstadoResponse,
+    summary="Clientes por estado",
+    description="Retorna la cantidad de clientes agrupados por estado (activo, inactivo, en_desarrollo).",
+)
+def clientes_por_estado(
+    user=Depends(get_current_user),
+):
+    """Retorna la métrica de clientes agrupados por estado."""
+    qs = (
+        User.objects.values("status")
+        .annotate(cantidad=Count("id"))
+        .order_by("status")
+    )
+
+    datos = [
+        ClientesPorEstadoItem(
+            estado=item["status"],
+            cantidad=item["cantidad"],
+        )
+        for item in qs
+    ]
+    total = sum(item.cantidad for item in datos)
+
+    return ClientesPorEstadoResponse(total=total, datos=datos)
