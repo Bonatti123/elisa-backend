@@ -25,6 +25,7 @@ REFRESH_TOKEN_EXPIRE_HOURS = int(getattr(settings, "REFRESH_TOKEN_EXPIRE_HOURS",
 
 
 def create_access_token(data: dict) -> str:
+    """Genera un token JWT de acceso con fecha de expiración."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "type": "access"})
@@ -32,6 +33,7 @@ def create_access_token(data: dict) -> str:
 
 
 def create_refresh_token(data: dict) -> str:
+    """Genera un token JWT de actualización con fecha de expiración más larga."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
     to_encode.update({"exp": expire, "type": "refresh"})
@@ -41,6 +43,7 @@ def create_refresh_token(data: dict) -> str:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> User:
+    """Obtiene el usuario autenticado a partir del token JWT en el encabezado."""
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -73,6 +76,7 @@ def get_current_user(
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
+    """Autentica al usuario con username y contraseña, devuelve tokens JWT."""
     try:
         user = User.objects.get(username=body.username, is_active=True)
     except User.DoesNotExist:
@@ -99,6 +103,7 @@ def login(body: LoginRequest):
 
 @router.post("/refresh", response_model=TokenResponse)
 def refresh(body: RefreshRequest):
+    """Renueva el token de acceso usando un token de actualización válido."""
     try:
         payload = jwt.decode(body.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
@@ -138,6 +143,7 @@ def refresh(body: RefreshRequest):
 
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)):
+    """Retorna los datos del usuario autenticado actualmente."""
     return UserResponse(
         id=str(user.id),
         username=user.username,

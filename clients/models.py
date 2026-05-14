@@ -19,6 +19,7 @@ class UserManager(BaseUserManager):
 
 
 class Role(models.Model):
+    """Modelo que representa un rol con permisos dentro del sistema."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, default="")
@@ -65,6 +66,7 @@ class Payment(models.Model):
 
 
 class Plan(models.Model):
+    """Modelo que representa un plan web de tipo alquiler o venta."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nombre = models.CharField(max_length=100)
     tipo = models.CharField(
@@ -88,6 +90,7 @@ class Plan(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """Modelo personalizado de usuario con roles, plan y estado."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True, blank=True, default="")
