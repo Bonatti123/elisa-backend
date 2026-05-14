@@ -91,3 +91,35 @@ def clientes_por_estado(
     total = sum(item.cantidad for item in datos)
 
     return ClientesPorEstadoResponse(total=total, datos=datos)
+
+
+@router.get(
+    "/clientes-por-plan",
+    response_model=ClientesPorPlanResponse,
+    summary="Clientes por tipo de plan",
+    description="Retorna la distribución de clientes por tipo de plan (alquiler vs venta) con porcentaje.",
+)
+def clientes_por_plan(
+    user=Depends(get_current_user),
+):
+    """Retorna la métrica de clientes distribuidos por tipo de plan."""
+    total_clientes = User.objects.filter(plan__isnull=False).count()
+
+    qs = (
+        User.objects.filter(plan__isnull=False)
+        .values("plan__tipo")
+        .annotate(cantidad=Count("id"))
+        .order_by("plan__tipo")
+    )
+
+    datos = [
+        ClientesPorPlanItem(
+            tipo_plan=item["plan__tipo"],
+            cantidad=item["cantidad"],
+            porcentaje=round((item["cantidad"] / total_clientes) * 100, 2) if total_clientes else 0,
+        )
+        for item in qs
+    ]
+    total = sum(item.cantidad for item in datos)
+
+    return ClientesPorPlanResponse(total=total, datos=datos)

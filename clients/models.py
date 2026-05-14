@@ -35,6 +35,29 @@ class Role(models.Model):
         return self.name
 
 
+class Plan(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nombre = models.CharField(max_length=100)
+    tipo = models.CharField(
+        max_length=20,
+        choices=[
+            ("alquiler", "Alquiler"),
+            ("venta", "Venta"),
+        ],
+    )
+    descripcion = models.TextField(blank=True, default="")
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "plans"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo})"
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
@@ -43,6 +66,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=150, blank=True, default="")
     role = models.ForeignKey(
         Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
+    )
+    plan = models.ForeignKey(
+        Plan, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
     )
     status = models.CharField(
         max_length=20,
