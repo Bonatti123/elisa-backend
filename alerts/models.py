@@ -53,3 +53,60 @@ class Alert(models.Model):
 
     def __str__(self):
         return f"{self.get_alert_type_display()} - {self.supplier.business_name}"
+
+
+class AlertNotificationLog(models.Model):
+    """
+    Historial de envíos de alertas a través de los distintos canales.
+    Registra cada intento de notificación con su resultado (éxito/falla)
+    para llevar trazabilidad y facilitar la depuración.
+    """
+
+    STATUS_CHOICES = [
+        ("success", "Éxito"),
+        ("failed", "Falló"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Alerta a la que pertenece este registro de envío
+    alert = models.ForeignKey(
+        Alert,
+        on_delete=models.CASCADE,
+        related_name="notification_logs",
+        verbose_name="alerta",
+    )
+    # Canal por el que se intentó el envío (email, whatsapp)
+    channel = models.CharField(
+        max_length=20,
+        verbose_name="canal",
+    )
+    # Estado del envío: éxito o falla
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        verbose_name="estado",
+    )
+    # Destinatario al que se intentó enviar
+    recipient = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="destinatario",
+    )
+    # Mensaje de error si el envío falló
+    error_message = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="mensaje de error",
+    )
+    # Momento en que se realizó el envío
+    sent_at = models.DateTimeField(auto_now_add=True, verbose_name="enviado el")
+
+    class Meta:
+        db_table = "alert_notification_logs"
+        ordering = ["-sent_at"]
+        verbose_name = "historial de envío"
+        verbose_name_plural = "historial de envíos"
+
+    def __str__(self):
+        return f"{self.channel} - {self.status} - {self.alert.id}"

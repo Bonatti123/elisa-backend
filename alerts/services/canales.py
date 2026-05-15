@@ -9,6 +9,7 @@ y envía la alerta por cada uno.
 import logging
 from django.conf import settings
 from django.core.mail import send_mail
+from alerts.models import AlertNotificationLog
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,25 @@ CANALES_DISPONIBLES = {
 }
 
 
+def _registrar_envio(alerta, channel, status, recipient="", error_message=""):
+    """
+    Guarda un registro en el historial de envíos (AlertNotificationLog)
+    para mantener trazabilidad de todas las notificaciones.
+    """
+    AlertNotificationLog.objects.create(
+        alert=alerta,
+        channel=channel,
+        status=status,
+        recipient=recipient,
+        error_message=error_message,
+    )
+
+
 def notificar_alerta(alerta):
     """
     Envía una alerta a través de todos los canales habilitados.
+    Cada intento queda registrado en AlertNotificationLog para
+    llevar un historial de envíos y fallas.
     Retorna un dict con {nombre_canal: True/False} indicando
     el resultado de cada envío.
     """
@@ -140,6 +157,28 @@ def notificar_alerta(alerta):
         try:
             exito = clase_canal.enviar(alerta)
             resultados[nombre_canal] = exito
+
+            # Obtener el destinatario según el canal para el historial
+            if nombre_canal == "email":
+                destinatario = ", ".join(
+                    getattr(settings, "ALERT_EMAIL_RECIPIENTS", []) or []
+                )
+            elif nombre_canal == "whatsapp":
+                destinatario = getattr(settings, "ALERT_WHATSAPP_NUMBER", "")
+            else:
+                destinatario = ""
+
+            if exito:
+                _registrar_envio(alerta, nombre_canal, "success", destinatario)
+            else:
+                _registrar_envio(
+                    alerta,
+                    nombre_canal,
+                    "failed",
+                    destinatario,
+                    "Canal devolvió False (sin configuración o destinatarios)",
+                )
+
         except Exception as e:
             logger.error(
                 "Error en canal %s para alerta %s: %s",
@@ -148,5 +187,12 @@ def notificar_alerta(alerta):
                 e,
             )
             resultados[nombre_canal] = False
+            _registrar_envio(
+                alerta,
+                nombre_canal,
+                "failed",
+                "",
+                str(e),
+            )
 
     return resultados
