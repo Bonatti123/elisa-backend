@@ -1,87 +1,55 @@
 """
-Señales para crear alertas automáticas cuando un proveedor o una
-renovación están próximos a vencer.
+Señales que disparan el motor de detección cuando se guarda un
+proveedor o una renovación, creando alertas en tiempo real.
 """
 
-from datetime import date
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from suppliers.models import Supplier, Renewal
-from .models import Alert
+from suppliers.services.detector import (
+    _crear_alerta_proveedor,
+    _crear_alerta_renovacion,
+)
+from datetime import date
 
 
 @receiver(post_save, sender=Supplier)
-def check_supplier_renewal_on_save(sender, instance, created, **kwargs):
+def verificar_proveedor_al_guardar(sender, instance, created, **kwargs):
     """
-    Cuando se crea o actualiza un proveedor, verifica si está
-    próximo a vencer y crea una alerta si corresponde.
+    Cuando se crea o actualiza un proveedor, usa el motor de detección
+    para verificar si está próximo a vencer o ya vencido.
     """
-    # Solo procesa proveedores activos
     if not instance.is_active or instance.status != "active":
         return
 
     today = date.today()
-    # Si la fecha ya pasó, no genera alerta
+    dias_restantes = (instance.contract_end_date - today).days
+
     if instance.contract_end_date < today:
-        return
-
-    days_until_expiry = (instance.contract_end_date - today).days
-
-    # Si está dentro del rango de notificación, crea la alerta
-    if days_until_expiry <= instance.renewal_notification_days:
-        # Evita duplicar si ya existe una alerta sin leer
-        existing = Alert.objects.filter(
-            supplier=instance,
-            alert_type="renewal",
-            is_read=False,
-        ).exists()
-        if not existing:
-            Alert.objects.create(
-                supplier=instance,
-                alert_type="renewal",
-                message=(
-                    f"El contrato con {instance.business_name} "
-                    f"vence el {instance.contract_end_date}. "
-                    f"Faltan {days_until_expiry} días para el vencimiento."
-                ),
-            )
+        # Caso: contrato ya vencido
+        _crear_alerta_proveedor(instance, "expiration", dias_restantes, vencida=True)
+    elif dias_restantes <= instance.renewal_notification_days:
+        # Caso: contrato próximo a vencer
+        _crear_alerta_proveedor(instance, "renewal", dias_restantes)
 
 
 @receiver(post_save, sender=Renewal)
-def check_renewal_on_save(sender, instance, created, **kwargs):
+def verificar_renovacion_al_guardar(sender, instance, created, **kwargs):
     """
-    Cuando se crea o actualiza una renovación, verifica si está
-    próxima a vencer y crea una alerta vinculada al registro.
+    Cuando se crea o actualiza una renovación, usa el motor de detección
+    para verificar si está próxima a vencer o ya vencida.
     """
-    # Solo procesa renovaciones activas
     if not instance.is_active or instance.status != "active":
         return
 
     today = date.today()
-    # Si la fecha ya pasó, no genera alerta
+    dias_restantes = (instance.contract_end_date - today).days
+
     if instance.contract_end_date < today:
-        return
-
-    days_until_expiry = (instance.contract_end_date - today).days
-
-    # Si está dentro del rango de notificación, crea la alerta
-    if days_until_expiry <= instance.renewal_notification_days:
-        # Evita duplicar si ya existe una alerta sin leer para esta renovación
-        existing = Alert.objects.filter(
-            renewal=instance,
-            alert_type="renewal",
-            is_read=False,
-        ).exists()
-        if not existing:
-            Alert.objects.create(
-                supplier=instance.supplier,
-                renewal=instance,
-                service=instance.service,
-                alert_type="renewal",
-                message=(
-                    f"Renovación de {instance.service.name} - "
-                    f"{instance.supplier.business_name} "
-                    f"vence el {instance.contract_end_date}. "
-                    f"Faltan {days_until_expiry} días."
-                ),
-            )
+        # Caso: renovación ya vencida
+        _crear_alerta_renovacion(
+            instance, "expiration", dias_restantes, vencida=True
+        )
+    elif dias_restantes <= instance.renewal_notification_days:
+        # Caso: renovación próxima a vencer
+        _crear_alerta_renovacion(instance, "renewal", dias_restantes)
