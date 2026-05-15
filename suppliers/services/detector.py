@@ -13,6 +13,7 @@ Este módulo es usado por:
 from datetime import date
 from suppliers.models import Supplier, Renewal
 from alerts.models import Alert
+from alerts.services.canales import notificar_alerta
 
 
 # ─── Funciones auxiliares ─────────────────────────────────────────────
@@ -44,11 +45,13 @@ def _crear_alerta_proveedor(supplier, tipo_alerta, dias_restantes, vencida=False
     ).exists()
 
     if not existe:
-        Alert.objects.create(
+        alerta = Alert.objects.create(
             supplier=supplier,
             alert_type=tipo_alerta,
             message=mensaje,
         )
+        # Notificar a través de los canales habilitados
+        notificar_alerta(alerta)
         return True
     return False
 
@@ -81,13 +84,15 @@ def _crear_alerta_renovacion(renewal, tipo_alerta, dias_restantes, vencida=False
     ).exists()
 
     if not existe:
-        Alert.objects.create(
+        alerta = Alert.objects.create(
             supplier=renewal.supplier,
             renewal=renewal,
             service=renewal.service,
             alert_type=tipo_alerta,
             message=mensaje,
         )
+        # Notificar a través de los canales habilitados
+        notificar_alerta(alerta)
         return True
     return False
 
