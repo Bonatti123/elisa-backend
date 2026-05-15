@@ -18,6 +18,24 @@ class Alert(models.Model):
         related_name="alerts",
         verbose_name="proveedor",
     )
+    # Registro de renovación específica que originó la alerta
+    renewal = models.ForeignKey(
+        "suppliers.Renewal",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alerts",
+        verbose_name="renovación",
+    )
+    # Servicio relacionado con la alerta
+    service = models.ForeignKey(
+        "suppliers.Service",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alerts",
+        verbose_name="servicio",
+    )
     alert_type = models.CharField(
         max_length=20,
         choices=ALERT_TYPES,

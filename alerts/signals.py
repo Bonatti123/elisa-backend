@@ -1,12 +1,12 @@
 """
-Señales para crear alertas automáticas cuando se guarda un proveedor
-cuya fecha de fin está próxima a vencer.
+Señales para crear alertas automáticas cuando un proveedor o una
+renovación están próximos a vencer.
 """
 
 from datetime import date
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from suppliers.models import Supplier
+from suppliers.models import Supplier, Renewal
 from .models import Alert
 
 
@@ -43,5 +43,45 @@ def check_supplier_renewal_on_save(sender, instance, created, **kwargs):
                     f"El contrato con {instance.business_name} "
                     f"vence el {instance.contract_end_date}. "
                     f"Faltan {days_until_expiry} días para el vencimiento."
+                ),
+            )
+
+
+@receiver(post_save, sender=Renewal)
+def check_renewal_on_save(sender, instance, created, **kwargs):
+    """
+    Cuando se crea o actualiza una renovación, verifica si está
+    próxima a vencer y crea una alerta vinculada al registro.
+    """
+    # Solo procesa renovaciones activas
+    if not instance.is_active or instance.status != "active":
+        return
+
+    today = date.today()
+    # Si la fecha ya pasó, no genera alerta
+    if instance.contract_end_date < today:
+        return
+
+    days_until_expiry = (instance.contract_end_date - today).days
+
+    # Si está dentro del rango de notificación, crea la alerta
+    if days_until_expiry <= instance.renewal_notification_days:
+        # Evita duplicar si ya existe una alerta sin leer para esta renovación
+        existing = Alert.objects.filter(
+            renewal=instance,
+            alert_type="renewal",
+            is_read=False,
+        ).exists()
+        if not existing:
+            Alert.objects.create(
+                supplier=instance.supplier,
+                renewal=instance,
+                service=instance.service,
+                alert_type="renewal",
+                message=(
+                    f"Renovación de {instance.service.name} - "
+                    f"{instance.supplier.business_name} "
+                    f"vence el {instance.contract_end_date}. "
+                    f"Faltan {days_until_expiry} días."
                 ),
             )

@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 import django
 django.setup()
 
-from api.routers import auth, suppliers, alerts
+from api.routers import auth, suppliers, alerts, renewals
 
 
 @asynccontextmanager
@@ -37,6 +37,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Proveedores"])
 app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["Alertas"])
+app.include_router(renewals.router, prefix="/api/v1/renewals", tags=["Renovaciones"])
 
 
 @app.get("/api/v1/health")
