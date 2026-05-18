@@ -10,4 +10,4 @@ if env == "production":
 elif env == "testing":
     from .testing import *  # noqa
 else:
-    from .base import *  # noqa
+    from .development import *  # noqa
