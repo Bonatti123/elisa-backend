@@ -68,8 +68,8 @@ class Client(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=50, blank=True, default="")
-    client_type = models.CharField(max_length=50, blank=True, default="")
-    payment_frequency = models.CharField(max_length=50, blank=True, default="")
+    client_type = models.CharField(max_length=50, blank=True, null=True, default="")
+    payment_frequency = models.CharField(max_length=50, blank=True, null=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -102,13 +102,23 @@ class Campaign(models.Model):
 
 
 class Promotion(models.Model):
+    APPLIES_TO_CHOICES = [
+        ("quote", "Cotización"),
+        ("service", "Servicio"),
+        ("client", "Cliente"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
+    benefit_description = models.TextField(blank=True, default="")
     discount_type = models.CharField(max_length=20)
     discount_value = models.DecimalField(max_digits=10, decimal_places=2)
     max_discount_amount = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    applies_to = models.CharField(
+        max_length=20, choices=APPLIES_TO_CHOICES, default="quote"
     )
     min_purchase_amount = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
@@ -118,9 +128,9 @@ class Promotion(models.Model):
     )
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_to = models.DateTimeField(null=True, blank=True)
-    client_type = models.CharField(max_length=50, blank=True, default="")
-    web_type_id = models.CharField(max_length=50, blank=True, default="")
-    payment_frequency = models.CharField(max_length=50, blank=True, default="")
+    client_type = models.CharField(max_length=50, blank=True, null=True, default="")
+    web_type_id = models.CharField(max_length=50, blank=True, null=True, default="")
+    payment_frequency = models.CharField(max_length=50, blank=True, null=True, default="")
     campaign = models.ForeignKey(
         Campaign,
         on_delete=models.SET_NULL,

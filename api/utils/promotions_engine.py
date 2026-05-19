@@ -22,8 +22,11 @@ class AppliedPromotion:
     savings: Decimal = field(compare=True)
     promotion_id: str = field(compare=False)
     name: str = field(compare=False)
+    description: str = field(compare=False)
+    benefit_description: str = field(compare=False)
     discount_type: str = field(compare=False)
     discount_value: Decimal = field(compare=False)
+    applies_to: str = field(compare=False)
     final_amount: Decimal = field(compare=False)
 
 
@@ -33,6 +36,7 @@ class PromotionsEngine:
     def evaluate_promotions(
         client_id: str,
         amount: Decimal,
+        context_type: str = "quote",
         web_type_id: str | None = None,
         service_product_id: str | None = None,
     ) -> dict[str, Any]:
@@ -41,6 +45,7 @@ class PromotionsEngine:
             Q(valid_from__isnull=True) | Q(valid_from__lte=now),
             Q(valid_to__isnull=True) | Q(valid_to__gte=now),
             is_active=True,
+            applies_to=context_type,
         )
 
         applicable: list[AppliedPromotion] = []
@@ -56,8 +61,11 @@ class PromotionsEngine:
                         savings=savings,
                         promotion_id=str(promotion.id),
                         name=promotion.name,
+                        description=promotion.description,
+                        benefit_description=promotion.benefit_description,
                         discount_type=promotion.discount_type,
                         discount_value=promotion.discount_value,
+                        applies_to=promotion.applies_to,
                         final_amount=final_amount,
                     )
                 )
@@ -71,8 +79,11 @@ class PromotionsEngine:
                 {
                     "promotion_id": p.promotion_id,
                     "name": p.name,
+                    "description": p.description,
+                    "benefit_description": p.benefit_description,
                     "discount_type": p.discount_type,
                     "discount_value": str(p.discount_value),
+                    "applies_to": p.applies_to,
                     "savings": str(p.savings),
                     "final_amount": str(p.final_amount),
                 }
@@ -82,8 +93,11 @@ class PromotionsEngine:
                 {
                     "promotion_id": best_promotion.promotion_id,
                     "name": best_promotion.name,
+                    "description": best_promotion.description,
+                    "benefit_description": best_promotion.benefit_description,
                     "discount_type": best_promotion.discount_type,
                     "discount_value": str(best_promotion.discount_value),
+                    "applies_to": best_promotion.applies_to,
                     "savings": str(best_promotion.savings),
                     "final_amount": str(best_promotion.final_amount),
                 }
@@ -117,7 +131,7 @@ class PromotionsEngine:
             except Client.DoesNotExist:
                 return False
 
-        if promotion.web_type is not None and web_type_id is not None:
+        if promotion.web_type_id and web_type_id is not None:
             if web_type_id != promotion.web_type_id:
                 return False
 

@@ -129,6 +129,7 @@ def evaluate_promotions(body: EvaluateRequest):
     result = PromotionsEngine.evaluate_promotions(
         client_id=body.client_id,
         amount=body.amount,
+        context_type=body.context_type,
         web_type_id=body.web_type_id,
         service_product_id=body.service_product_id,
     )
