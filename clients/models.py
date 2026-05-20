@@ -209,3 +209,37 @@ class Client(models.Model):
         self.extra_price = extra
         self.total_price = self.base_price + extra
         self.save(update_fields=["extra_price", "total_price"])
+
+
+class ChangeRequest(models.Model):
+    """Solicitud de cambio sensible en un cliente que requiere aprobación."""
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("aprobado", "Aprobado"),
+        ("rechazado", "Rechazado"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cliente = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="change_requests"
+    )
+    campo = models.CharField(max_length=100)  # Campo solicitado a cambiar
+    valor_anterior = models.JSONField(default=dict, blank=True)  # Valor antes del cambio
+    valor_nuevo = models.JSONField(default=dict, blank=True)  # Valor solicitado
+    motivo = models.TextField(blank=True, default="")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    solicitado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="change_requests_made"
+    )
+    revisado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="change_requests_reviewed"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "change_requests"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.campo} - {self.estado}"

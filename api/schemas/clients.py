@@ -3,7 +3,7 @@ Define las estructuras de datos para entrada y salida de la API.
 """
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 from pydantic.functional_validators import BeforeValidator
@@ -88,3 +88,31 @@ class ClientListResponse(BaseModel):
     page: int  # Página actual
     page_size: int  # Registros por página
     results: list[ClientResponse]  # Lista de clientes en esta página
+
+
+class ChangeRequestCreate(BaseModel):
+    """Esquema para solicitar un cambio sensible en un cliente."""
+    campo: str = Field(..., max_length=100)
+    valor_nuevo: Any
+    motivo: str = Field(..., min_length=10, max_length=1000)
+
+
+class ChangeRequestResponse(BaseModel):
+    """Esquema de respuesta de una solicitud de cambio."""
+    id: IdField
+    cliente_id: str
+    campo: str
+    valor_anterior: dict
+    valor_nuevo: dict
+    motivo: str
+    estado: str
+    solicitado_por: str | None = None
+    revisado_por: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChangeRequestReview(BaseModel):
+    """Esquema para aprobar o rechazar una solicitud de cambio."""
+    estado: str = Field(..., pattern=r"^(aprobado|rechazado)$")
+    motivo_rechazo: str | None = Field(default=None, max_length=500)
