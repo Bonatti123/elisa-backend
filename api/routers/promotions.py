@@ -1,3 +1,6 @@
+"""Router de promociones y campañas con operaciones CRUD y evaluación.
+Incluye: gestión de promociones, campañas y endpoint de evaluación.
+"""
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -19,6 +22,7 @@ router = APIRouter()
 
 
 def require_superadmin(user: User = Depends(get_current_user)) -> User:
+    """Dependencia que verifica que el usuario sea superadmin."""
     if not user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -27,12 +31,16 @@ def require_superadmin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+# ─── PROMOCIONES ────────────────────────────────────────────────────────
+
+
 @router.get("/promotions/", response_model=list[PromotionResponse])
 def list_promotions(
     is_active: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ):
+    """Lista todas las promociones con filtro opcional por estado activo."""
     qs = Promotion.objects.all()
     if is_active is not None:
         qs = qs.filter(is_active=is_active)
@@ -42,6 +50,7 @@ def list_promotions(
 
 @router.get("/promotions/{promotion_id}", response_model=PromotionResponse)
 def get_promotion(promotion_id: str):
+    """Obtiene el detalle de una promoción por su ID."""
     try:
         promotion = Promotion.objects.select_related("campaign").get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -61,6 +70,7 @@ def create_promotion(
     body: PromotionCreate,
     _: User = Depends(require_superadmin),
 ):
+    """Crea una nueva promoción (solo superadmin)."""
     data = body.model_dump()
     campaign_id = data.pop("campaign_id", None)
     if campaign_id:
@@ -82,6 +92,7 @@ def update_promotion(
     body: PromotionUpdate,
     _: User = Depends(require_superadmin),
 ):
+    """Actualiza una promoción existente (solo superadmin)."""
     try:
         promotion = Promotion.objects.get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -113,6 +124,7 @@ def delete_promotion(
     promotion_id: str,
     _: User = Depends(require_superadmin),
 ):
+    """Eliminación lógica de una promoción (solo superadmin)."""
     try:
         promotion = Promotion.objects.get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -126,6 +138,10 @@ def delete_promotion(
 
 @router.post("/promotions/evaluate", response_model=EvaluateResponse)
 def evaluate_promotions(body: EvaluateRequest):
+    """
+    Evalúa las promociones aplicables para un cliente y contexto.
+    Retorna la lista de promociones que aplican y la mejor opción.
+    """
     result = PromotionsEngine.evaluate_promotions(
         client_id=body.client_id,
         amount=body.amount,
@@ -136,12 +152,16 @@ def evaluate_promotions(body: EvaluateRequest):
     return result
 
 
+# ─── CAMPAÑAS ───────────────────────────────────────────────────────────
+
+
 @router.get("/campaigns/", response_model=list[CampaignResponse])
 def list_campaigns(
     is_active: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ):
+    """Lista todas las campañas con filtro opcional por estado activo."""
     qs = Campaign.objects.all()
     if is_active is not None:
         qs = qs.filter(is_active=is_active)
@@ -151,6 +171,7 @@ def list_campaigns(
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse)
 def get_campaign(campaign_id: str):
+    """Obtiene el detalle de una campaña por su ID."""
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
@@ -170,6 +191,7 @@ def create_campaign(
     body: CampaignCreate,
     _: User = Depends(require_superadmin),
 ):
+    """Crea una nueva campaña de marketing (solo superadmin)."""
     campaign = Campaign.objects.create(**body.model_dump())
     return campaign
 
@@ -180,6 +202,7 @@ def update_campaign(
     body: CampaignCreate,
     _: User = Depends(require_superadmin),
 ):
+    """Actualiza una campaña existente (solo superadmin)."""
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
@@ -198,6 +221,7 @@ def delete_campaign(
     campaign_id: str,
     _: User = Depends(require_superadmin),
 ):
+    """Eliminación lógica de una campaña (solo superadmin)."""
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
