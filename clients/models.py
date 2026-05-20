@@ -103,6 +103,33 @@ class WebFeature(models.Model):
         return self.name
 
 
+class AuditLog(models.Model):
+    """Bitácora de auditoría para registrar cambios críticos en el sistema."""
+    ACCIONES = [
+        ("creacion", "Creación"),
+        ("actualizacion", "Actualización"),
+        ("eliminacion", "Eliminación"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="auditoria"
+    )
+    accion = models.CharField(max_length=20, choices=ACCIONES)
+    modulo = models.CharField(max_length=50)  # Ej: clients, auth, suppliers
+    registro_id = models.CharField(max_length=100, blank=True, default="")  # ID del registro afectado
+    detalle = models.JSONField(default=dict, blank=True)  # Cambios en formato JSON
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "audit_log"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.accion} - {self.modulo} - {self.created_at}"
+
+
 class Client(models.Model):
     """Modelo principal de clientes del sistema CRM."""
     STATUS_CHOICES = [

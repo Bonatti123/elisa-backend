@@ -13,9 +13,20 @@ from api.schemas.clients import (
     ClientResponse,
     ClientUpdate,
 )
-from clients.models import Client, WebType, WebFeature, User
+from clients.models import AuditLog, Client, WebType, WebFeature, User
 
 router = APIRouter()
+
+
+def _registrar_auditoria(usuario, accion, modulo, registro_id, detalle=None):
+    """Crea un registro en la bitácora de auditoría."""
+    AuditLog.objects.create(
+        usuario=usuario,
+        accion=accion,
+        modulo=modulo,
+        registro_id=registro_id,
+        detalle=detalle or {},
+    )
 
 
 def _client_to_response(client: Client) -> ClientResponse:
@@ -148,6 +159,14 @@ def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
         client.features.set(features)
         client.update_prices()
 
+    _registrar_auditoria(
+        usuario=user,
+        accion="creacion",
+        modulo="clients",
+        registro_id=str(client.id),
+        detalle={"name": client.name, "document_number": client.document_number, "email": client.email},
+    )
+
     return _client_to_response(client)
 
 
@@ -199,6 +218,14 @@ def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_c
         client.features.set(features)
         client.update_prices()
 
+    _registrar_auditoria(
+        usuario=user,
+        accion="actualizacion",
+        modulo="clients",
+        registro_id=client_id,
+        detalle={"campos_actualizados": list(body.model_dump(exclude_unset=True).keys())},
+    )
+
     return _client_to_response(client)
 
 
@@ -209,6 +236,15 @@ def delete_client(client_id: str, user: User = Depends(get_current_user)):
         client = Client.objects.get(id=client_id)
     except Client.DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
+
+    _registrar_auditoria(
+        usuario=user,
+        accion="eliminacion",
+        modulo="clients",
+        registro_id=client_id,
+        detalle={"name": client.name, "document_number": client.document_number},
+    )
+
     client.is_active = False
     client.status = "inactivo"
     client.save()
