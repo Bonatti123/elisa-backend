@@ -133,3 +133,12 @@ def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
         client.update_prices()
 
     return _client_to_response(client)
+
+
+@router.get("/{client_id}", response_model=ClientResponse)
+def get_client(client_id: str, user: User = Depends(get_current_user)):
+    try:
+        client = Client.objects.select_related("web_type", "created_by").prefetch_related("features").get(id=client_id)
+    except Client.DoesNotExist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
+    return _client_to_response(client)
