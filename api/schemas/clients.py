@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from pydantic.functional_validators import BeforeValidator
 
 
@@ -17,7 +17,7 @@ class ClientCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     document_type: str = Field(..., pattern=r"^(RUC|DNI|CE|Pasaporte)$")
     document_number: str = Field(..., min_length=6, max_length=20)
-    email: str = Field(..., max_length=254)
+    email: EmailStr
     phone: str = Field(..., max_length=50)
     web_type_id: str | None = None
     feature_ids: list[str] = Field(default=[])

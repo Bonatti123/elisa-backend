@@ -1,7 +1,6 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from django.db.models import Q
 
 from api.routers.auth import get_current_user
 from api.schemas.clients import (
@@ -49,6 +48,12 @@ def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El número de documento ya está registrado",
+        )
+
+    if Client.objects.filter(email=body.email).exists():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado",
         )
 
     data = body.model_dump()
