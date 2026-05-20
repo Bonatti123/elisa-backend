@@ -1,3 +1,6 @@
+"""Router de clientes con operaciones CRUD completas.
+Incluye: listado con filtros, creación, detalle, edición y baja lógica.
+"""
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,6 +19,7 @@ router = APIRouter()
 
 
 def _client_to_response(client: Client) -> ClientResponse:
+    """Convierte un modelo Client a su schema de respuesta ClientResponse."""
     return ClientResponse(
         id=str(client.id),
         cupe=client.cupe or "",
@@ -57,6 +61,12 @@ def list_clients(
     payment_frequency: str | None = None,
     is_active: bool | None = None,
 ):
+    """
+    Listado de clientes con filtros múltiples, paginación y búsqueda.
+    - Filtros: status, plan, web_type_id, payment_frequency, is_active
+    - Búsqueda: nombre, CUPE, documento, email, teléfono
+    - Paginación real con offset/limit
+    """
     filters = Q()
     if search:
         filters &= (
@@ -92,12 +102,15 @@ def list_clients(
 
 @router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
 def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
+    """Crea un nuevo cliente con validaciones y cálculos automáticos."""
+    # Validar unicidad de documento
     if Client.objects.filter(document_number=body.document_number).exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El número de documento ya está registrado",
         )
 
+    # Validar unicidad de email
     if Client.objects.filter(email=body.email).exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -138,6 +151,7 @@ def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
 
 @router.get("/{client_id}", response_model=ClientResponse)
 def get_client(client_id: str, user: User = Depends(get_current_user)):
+    """Obtiene el detalle completo de un cliente por su ID."""
     try:
         client = Client.objects.select_related("web_type", "created_by").prefetch_related("features").get(id=client_id)
     except Client.DoesNotExist:
@@ -147,6 +161,7 @@ def get_client(client_id: str, user: User = Depends(get_current_user)):
 
 @router.put("/{client_id}", response_model=ClientResponse)
 def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_current_user)):
+    """Actualiza un cliente con recálculo automático de precios y fechas."""
     try:
         client = Client.objects.select_related("web_type").prefetch_related("features").get(id=client_id)
     except Client.DoesNotExist:
@@ -187,6 +202,7 @@ def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_c
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_client(client_id: str, user: User = Depends(get_current_user)):
+    """Eliminación lógica de cliente: marca is_active=False y status=inactivo."""
     try:
         client = Client.objects.get(id=client_id)
     except Client.DoesNotExist:

@@ -4,7 +4,10 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 
 
 class UserManager(BaseUserManager):
+    """Manager personalizado para el modelo User."""
+
     def create_user(self, username, password=None, **extra_fields):
+        """Crea un usuario normal con username y password."""
         if not username:
             raise ValueError("El username es obligatorio")
         user = self.model(username=username, **extra_fields)
@@ -13,16 +16,18 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, username, password=None, **extra_fields):
+        """Crea un superusuario con is_staff=True e is_superuser=True."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(username, password, **extra_fields)
 
 
 class Role(models.Model):
+    """Modelo de roles del sistema para control de acceso y permisos."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, default="")
-    permissions = models.JSONField(default=dict, blank=True)
+    permissions = models.JSONField(default=dict, blank=True)  # Permisos en formato JSON
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -36,6 +41,7 @@ class Role(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """Modelo de usuario del sistema con autenticación por username."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True, default="")
@@ -63,10 +69,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class WebType(models.Model):
+    """Catálogo de tipos de web con precios base por plan (alquiler/venta)."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
-    base_price_rent = models.DecimalField(max_digits=10, decimal_places=2)
-    base_price_sale = models.DecimalField(max_digits=10, decimal_places=2)
+    base_price_rent = models.DecimalField(max_digits=10, decimal_places=2)  # Precio base alquiler
+    base_price_sale = models.DecimalField(max_digits=10, decimal_places=2)  # Precio base venta
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -80,9 +87,10 @@ class WebType(models.Model):
 
 
 class WebFeature(models.Model):
+    """Catálogo de funcionalidades extra para webs con precio adicional."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
-    extra_price = models.DecimalField(max_digits=10, decimal_places=2)
+    extra_price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio extra de la funcionalidad
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,6 +104,7 @@ class WebFeature(models.Model):
 
 
 class Client(models.Model):
+    """Modelo principal de clientes del sistema CRM."""
     STATUS_CHOICES = [
         ("activo", "Activo"),
         ("inactivo", "Inactivo"),
@@ -111,34 +120,34 @@ class Client(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cupe = models.CharField(max_length=50, blank=True, unique=True)
-    name = models.CharField(max_length=255)
-    document_type = models.CharField(max_length=20, blank=True, default="")
-    document_number = models.CharField(max_length=50, unique=True)
+    cupe = models.CharField(max_length=50, blank=True, unique=True)  # Código único de cliente ELO-XXXXX
+    name = models.CharField(max_length=255)  # Nombre o razón social
+    document_type = models.CharField(max_length=20, blank=True, default="")  # RUC/DNI/CE/Pasaporte
+    document_number = models.CharField(max_length=50, unique=True)  # Número de documento
     email = models.EmailField()
     phone = models.CharField(max_length=50)
     web_type = models.ForeignKey(
         WebType, on_delete=models.PROTECT, null=True, blank=True, related_name="clients"
-    )
-    features = models.ManyToManyField(WebFeature, blank=True)
+    )  # Tipo de web contratado
+    features = models.ManyToManyField(WebFeature, blank=True)  # Funcionalidades extra
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default="alquiler")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="en_desarrollo")
-    base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    extra_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    initial_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    domain_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Precio base del plan
+    extra_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Suma de precios extra
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Precio total (base + extra)
+    initial_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Pago inicial
+    domain_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Precio del dominio
     payment_frequency = models.CharField(
         max_length=20, choices=PAYMENT_FREQ_CHOICES, default="mensual"
-    )
-    registration_date = models.DateField(null=True, blank=True)
-    delivery_date = models.DateField(null=True, blank=True)
-    next_payment_date = models.DateField(null=True, blank=True)
+    )  # Frecuencia de pago
+    registration_date = models.DateField(null=True, blank=True)  # Fecha de registro
+    delivery_date = models.DateField(null=True, blank=True)  # Fecha de entrega
+    next_payment_date = models.DateField(null=True, blank=True)  # Próxima fecha de pago
     notes = models.TextField(blank=True, default="")
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="clients_created"
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)  # Soft delete: False si se dio de baja
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -150,6 +159,7 @@ class Client(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """Genera el CUPE automáticamente y calcula el precio base según el tipo de web."""
         if not self.cupe:
             ultimo = Client.objects.order_by("-created_at").first()
             if ultimo and ultimo.cupe and ultimo.cupe.startswith("ELO-"):
@@ -167,6 +177,7 @@ class Client(models.Model):
         super().save(*args, **kwargs)
 
     def update_prices(self):
+        """Recalcula el precio extra (suma de funcionalidades) y el precio total."""
         extra = sum(f.extra_price for f in self.features.all())
         self.extra_price = extra
         self.total_price = self.base_price + extra
