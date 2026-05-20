@@ -60,12 +60,14 @@ def list_clients(
     web_type_id: str | None = None,
     payment_frequency: str | None = None,
     is_active: bool | None = None,
+    ordering: str = Query("-created_at", description="Campo para ordenar. Prefijo - para descendente."),
 ):
     """
-    Listado de clientes con filtros múltiples, paginación y búsqueda.
+    Listado de clientes con filtros múltiples, paginación, búsqueda y ordenamiento.
     - Filtros: status, plan, web_type_id, payment_frequency, is_active
     - Búsqueda: nombre, CUPE, documento, email, teléfono
     - Paginación real con offset/limit
+    - Ordenamiento por cualquier campo (name, email, created_at, etc.)
     """
     filters = Q()
     if search:
@@ -87,7 +89,7 @@ def list_clients(
     if is_active is not None:
         filters &= Q(is_active=is_active)
 
-    qs = Client.objects.filter(filters).select_related("web_type", "created_by").prefetch_related("features").order_by("-created_at")
+    qs = Client.objects.filter(filters).select_related("web_type", "created_by").prefetch_related("features").order_by(ordering)
     total = qs.count()
     offset = (page - 1) * page_size
     clients = qs[offset : offset + page_size]
