@@ -1,10 +1,12 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from django.db.models import Q
 
 from api.routers.auth import get_current_user
 from api.schemas.clients import (
     ClientCreate,
+    ClientListResponse,
     ClientResponse,
 )
 from clients.models import Client, WebType, WebFeature, User
@@ -39,6 +41,51 @@ def _client_to_response(client: Client) -> ClientResponse:
         is_active=client.is_active,
         created_at=client.created_at,
         updated_at=client.updated_at,
+    )
+
+
+@router.get("/", response_model=ClientListResponse)
+def list_clients(
+    user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: str = Query("", max_length=100),
+    status: str | None = None,
+    plan: str | None = None,
+    web_type_id: str | None = None,
+    payment_frequency: str | None = None,
+    is_active: bool | None = None,
+):
+    filters = Q()
+    if search:
+        filters &= (
+            Q(name__icontains=search)
+            | Q(cupe__icontains=search)
+            | Q(document_number__icontains=search)
+            | Q(email__icontains=search)
+            | Q(phone__icontains=search)
+        )
+    if status:
+        filters &= Q(status=status)
+    if plan:
+        filters &= Q(plan=plan)
+    if web_type_id:
+        filters &= Q(web_type_id=web_type_id)
+    if payment_frequency:
+        filters &= Q(payment_frequency=payment_frequency)
+    if is_active is not None:
+        filters &= Q(is_active=is_active)
+
+    qs = Client.objects.filter(filters).select_related("web_type", "created_by").prefetch_related("features").order_by("-created_at")
+    total = qs.count()
+    offset = (page - 1) * page_size
+    clients = qs[offset : offset + page_size]
+
+    return ClientListResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        results=[_client_to_response(c) for c in clients],
     )
 
 

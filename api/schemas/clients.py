@@ -55,3 +55,10 @@ class ClientResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ClientListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    results: list[ClientResponse]
