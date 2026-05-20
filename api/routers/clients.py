@@ -183,3 +183,14 @@ def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_c
         client.update_prices()
 
     return _client_to_response(client)
+
+
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_client(client_id: str, user: User = Depends(get_current_user)):
+    try:
+        client = Client.objects.get(id=client_id)
+    except Client.DoesNotExist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
+    client.is_active = False
+    client.status = "inactivo"
+    client.save()
