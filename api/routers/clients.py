@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from django.db.models import Q
@@ -8,6 +8,7 @@ from api.schemas.clients import (
     ClientCreate,
     ClientListResponse,
     ClientResponse,
+    ClientUpdate,
 )
 from clients.models import Client, WebType, WebFeature, User
 
@@ -141,4 +142,44 @@ def get_client(client_id: str, user: User = Depends(get_current_user)):
         client = Client.objects.select_related("web_type", "created_by").prefetch_related("features").get(id=client_id)
     except Client.DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
+    return _client_to_response(client)
+
+
+@router.put("/{client_id}", response_model=ClientResponse)
+def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_current_user)):
+    try:
+        client = Client.objects.select_related("web_type").prefetch_related("features").get(id=client_id)
+    except Client.DoesNotExist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado")
+
+    data = body.model_dump(exclude_unset=True)
+    feature_ids = data.pop("feature_ids", None)
+    web_type_id = data.pop("web_type_id", None)
+
+    if web_type_id is not None:
+        try:
+            web_type = WebType.objects.get(id=web_type_id, is_active=True)
+        except WebType.DoesNotExist:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de web no encontrado")
+        client.web_type = web_type
+        base = web_type.base_price_rent if client.plan == "alquiler" else web_type.base_price_sale
+        client.base_price = base
+
+    if "delivery_date" in data and data["delivery_date"] and client.status == "en_desarrollo":
+        client.status = "activo"
+        if client.payment_frequency == "mensual":
+            client.next_payment_date = data["delivery_date"] + timedelta(days=30)
+        else:
+            client.next_payment_date = date(data["delivery_date"].year + 1, data["delivery_date"].month, data["delivery_date"].day)
+
+    for attr, value in data.items():
+        setattr(client, attr, value)
+
+    client.save()
+
+    if feature_ids is not None:
+        features = WebFeature.objects.filter(id__in=feature_ids, is_active=True)
+        client.features.set(features)
+        client.update_prices()
+
     return _client_to_response(client)

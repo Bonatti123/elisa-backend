@@ -29,6 +29,22 @@ class ClientCreate(BaseModel):
     notes: str = Field(default="", max_length=2000)
 
 
+class ClientUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=50)
+    web_type_id: str | None = None
+    feature_ids: list[str] | None = None
+    plan: str | None = Field(default=None, pattern=r"^(alquiler|venta)$")
+    status: str | None = Field(default=None, pattern=r"^(activo|inactivo|en_desarrollo)$")
+    initial_payment: Decimal | None = Field(default=None, gt=0)
+    domain_price: Decimal | None = Field(default=None, ge=0)
+    payment_frequency: str | None = Field(default=None, pattern=r"^(mensual|anual)$")
+    registration_date: date | None = None
+    delivery_date: date | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
 class ClientResponse(BaseModel):
     id: IdField
     cupe: str
