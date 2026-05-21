@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, timedelta
+from django.conf import settings  # Configuración del proyecto para variables de entorno
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
@@ -206,13 +207,11 @@ class Client(models.Model):
         if self.delivery_date and self.status == "en_desarrollo":
             self.status = "activo"
             if self.payment_frequency == "mensual":
-                self.next_payment_date = self.delivery_date + timedelta(days=30)
+                # Próximo pago: fecha de entrega + días configurados para alquiler (PLAN_RENEWAL_DAYS_RENT)
+                self.next_payment_date = self.delivery_date + timedelta(days=settings.PLAN_RENEWAL_DAYS_RENT)
             else:
-                self.next_payment_date = date(
-                    self.delivery_date.year + 1,
-                    self.delivery_date.month,
-                    self.delivery_date.day,
-                )
+                # Próximo pago: fecha de entrega + días configurados para venta (PLAN_RENEWAL_DAYS_SALE)
+                self.next_payment_date = self.delivery_date + timedelta(days=settings.PLAN_RENEWAL_DAYS_SALE)
 
         super().save(*args, **kwargs)
 

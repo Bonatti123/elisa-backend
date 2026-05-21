@@ -89,3 +89,6 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 ).split(",")
 
 CORS_ALLOW_CREDENTIALS = True
+
+PLAN_RENEWAL_DAYS_RENT = int(os.getenv("PLAN_RENEWAL_DAYS_RENT", "30"))  # Días para renovación en plan alquiler (frecuencia mensual)
+PLAN_RENEWAL_DAYS_SALE = int(os.getenv("PLAN_RENEWAL_DAYS_SALE", "365"))  # Días para renovación en plan venta (frecuencia anual)
