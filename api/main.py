@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from django.conf import settings  # Configuración de Django para leer CORS_ALLOWED_ORIGINS
 
 # Configuración de Django ORM para usarlo desde FastAPI
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
@@ -26,14 +27,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware CORS para permitir peticiones desde el frontend
+# Middleware CORS — lee los orígenes permitidos desde la configuración de Django (settings.CORS_ALLOWED_ORIGINS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=settings.CORS_ALLOWED_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
