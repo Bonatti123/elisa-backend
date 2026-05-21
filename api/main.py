@@ -42,7 +42,17 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 
 
+@app.get("/")
+def root():
+    """Root endpoint for monitoring and health check."""
+    return {
+        "status": "ok",
+        "service": "ELISA API",
+        "version": "1.0.0",
+    }
+
+
 @app.get("/api/v1/health")
 def health():
-    """Health check endpoint."""
+    """Health check endpoint (legacy)."""
     return {"status": "ok", "version": "1.0.0"}
