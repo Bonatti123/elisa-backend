@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "clients",
+    "audit",  # App de auditoría para registrar cambios críticos
 ]
 
 MIDDLEWARE = [
