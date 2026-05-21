@@ -69,6 +69,21 @@ def get_current_user(
     return user
 
 
+ROLES_ESCRITURA = {"L1", "L2", "L3", "L4"}  # Roles con permiso de escritura en el sistema
+
+
+def require_write_access(user: User = Depends(get_current_user)) -> User:
+    """Verifica que el usuario tenga un rol autorizado para escritura (L1-L4) o sea staff."""
+    if user.is_staff or user.is_superuser:
+        return user
+    if not user.role or user.role.name not in ROLES_ESCRITURA:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acción no permitida. Se requiere rol L1 a L4.",
+        )
+    return user
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
     try:

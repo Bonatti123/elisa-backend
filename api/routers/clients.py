@@ -4,7 +4,7 @@ Incluye: listado con filtros, creación, detalle, edición y baja lógica.
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from django.db.models import Q
 
-from api.routers.auth import get_current_user
+from api.routers.auth import get_current_user, require_write_access
 from api.schemas.clients import (
     ChangeRequestCreate,
     ChangeRequestResponse,
@@ -115,7 +115,7 @@ def list_clients(
 
 
 @router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
-def create_client(body: ClientCreate, user: User = Depends(get_current_user)):
+def create_client(body: ClientCreate, user: User = Depends(require_write_access)):
     """Crea un nuevo cliente con validaciones y cálculos automáticos."""
     # Validar unicidad de documento
     if Client.objects.filter(document_number=body.document_number).exists():
@@ -321,7 +321,7 @@ def review_change_request(request_id: str, body: ChangeRequestReview, user: User
 
 
 @router.put("/{client_id}", response_model=ClientResponse)
-def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_current_user)):
+def update_client(client_id: str, body: ClientUpdate, user: User = Depends(require_write_access)):
     """Actualiza un cliente con recálculo automático de precios y fechas."""
     try:
         client = Client.objects.select_related("web_type").prefetch_related("features").get(id=client_id)
@@ -361,7 +361,7 @@ def update_client(client_id: str, body: ClientUpdate, user: User = Depends(get_c
 
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_client(client_id: str, user: User = Depends(get_current_user)):
+def delete_client(client_id: str, user: User = Depends(require_write_access)):
     """Eliminación lógica de cliente: marca is_active=False y status=inactivo."""
     try:
         client = Client.objects.get(id=client_id)
