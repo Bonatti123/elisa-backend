@@ -3,7 +3,7 @@ from clients.models import Role, User
 
 
 class Command(BaseCommand):
-    help = "Crea los roles del sistema y el usuario Superadmin"
+    help = "Creates system roles and the Superadmin user"
 
     ROLES = [
         {"name": "Superadmin", "description": "Acceso total al sistema"},

@@ -4,12 +4,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Project paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Security
 SECRET_KEY = os.getenv("SECRET_KEY", "mi-clave-local-elisa-2026")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+# Installed Django apps
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
@@ -20,6 +23,7 @@ INSTALLED_APPS = [
     "clients",
 ]
 
+# Middleware pipeline
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -33,6 +37,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "core.urls"
 
+# Templates configuration
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -51,6 +56,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
+# Database configuration (PostgreSQL by default, fallback to SQLite)
 DB_ENGINE = os.getenv("DB_ENGINE", "postgresql")
 
 if DB_ENGINE == "postgresql":
@@ -72,17 +78,22 @@ else:
         }
     }
 
+# Internationalization
 LANGUAGE_CODE = "es-mx"
 TIME_ZONE = "America/Mexico_City"
 USE_I18N = True
 USE_TZ = True
 
+# Static files
 STATIC_URL = "static/"
 
+# Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom user model
 AUTH_USER_MODEL = "clients.User"
 
+# CORS configuration
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173",
