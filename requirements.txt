@@ -1,9 +1,10 @@
-fastapi>=0.115.0
-django>=5.1.1
-psycopg[binary]>=3.2.10
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
-uvicorn[standard]>=0.30.6
-python-dotenv>=1.0.1
-django-cors-headers>=4.4.0
-pydantic[email]>=2.9.1
+# Dependencias del proyecto — versiones fijas para entorno reproducible
+fastapi==0.136.1
+django==6.0.5
+psycopg[binary]==3.3.4
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
+uvicorn[standard]==0.46.0
+python-dotenv==1.2.2
+django-cors-headers==4.9.0
+pydantic[email]==2.13.4
