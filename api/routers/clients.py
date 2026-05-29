@@ -2,6 +2,7 @@
 Incluye: listado con filtros, creación, detalle, edición y baja lógica.
 """
 from datetime import date, timedelta
+from typing import Any, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from django.db.models import Q
@@ -21,7 +22,29 @@ from clients.models import AuditLog, ChangeRequest, Client, WebType, WebFeature,
 router = APIRouter()
 
 
-def _registrar_auditoria(usuario, accion, modulo, registro_id, detalle=None):
+class HistoryEntry(TypedDict):
+    id: str
+    accion: str
+    detalle: dict[str, Any]
+    usuario: str | None
+    created_at: str
+
+
+class ChangeRequestEntry(TypedDict):
+    id: str
+    cliente_id: str
+    campo: str
+    valor_anterior: dict[str, Any]
+    valor_nuevo: dict[str, Any]
+    motivo: str
+    estado: str
+    solicitado_por: str | None
+    revisado_por: str | None
+    created_at: str
+    updated_at: str
+
+
+def _registrar_auditoria(usuario: User, accion: str, modulo: str, registro_id: str, detalle: dict | None = None) -> None:
     """Crea un registro en la bitácora de auditoría."""
     AuditLog.objects.create(
         usuario=usuario,
@@ -184,7 +207,7 @@ def get_client(client_id: str, user: User = Depends(get_current_user)):
 
 
 @router.get("/{client_id}/history")
-def get_client_history(client_id: str, user: User = Depends(get_current_user)):
+def get_client_history(client_id: str, user: User = Depends(get_current_user)) -> list[HistoryEntry]:
     """Obtiene el historial de cambios de un cliente desde la bitácora de auditoría."""
     try:
         Client.objects.get(id=client_id)
@@ -205,7 +228,7 @@ def get_client_history(client_id: str, user: User = Depends(get_current_user)):
 
 
 @router.get("/{client_id}/change-requests", response_model=list[ChangeRequestResponse])
-def list_change_requests(client_id: str, user: User = Depends(get_current_user)):
+def list_change_requests(client_id: str, user: User = Depends(get_current_user)) -> list[ChangeRequestResponse]:
     """Lista las solicitudes de cambio sensible de un cliente."""
     try:
         Client.objects.get(id=client_id)
