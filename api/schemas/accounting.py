@@ -1,3 +1,5 @@
+"""Esquemas Pydantic para el módulo de contabilidad (compras, ventas y resumen financiero).
+"""
 from datetime import date
 from decimal import Decimal
 
@@ -5,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class PurchaseCreate(BaseModel):
+    """Esquema para registrar una nueva compra."""
     provider_name: str = Field(..., min_length=1, max_length=255)
     document_type: str = Field(..., pattern=r"^(invoice|receipt|credit_note|debit_note)$")
     document_number: str = Field(default="", max_length=100)
@@ -16,6 +19,7 @@ class PurchaseCreate(BaseModel):
 
 
 class PurchaseUpdate(BaseModel):
+    """Esquema para actualizar una compra existente. Todos los campos son opcionales."""
     provider_name: str | None = Field(default=None, min_length=1, max_length=255)
     document_type: str | None = Field(default=None, pattern=r"^(invoice|receipt|credit_note|debit_note)$")
     document_number: str | None = Field(default=None, max_length=100)
@@ -27,6 +31,7 @@ class PurchaseUpdate(BaseModel):
 
 
 class PurchaseResponse(BaseModel):
+    """Esquema de respuesta con los datos completos de una compra."""
     id: str
     provider_name: str
     document_type: str
@@ -44,6 +49,7 @@ class PurchaseResponse(BaseModel):
 
 
 class SaleCreate(BaseModel):
+    """Esquema para registrar una nueva venta."""
     client_name: str = Field(..., min_length=1, max_length=255)
     client_email: str = Field(default="", max_length=254)
     document_type: str = Field(..., pattern=r"^(invoice|receipt|credit_note|debit_note)$")
@@ -56,6 +62,7 @@ class SaleCreate(BaseModel):
 
 
 class SaleUpdate(BaseModel):
+    """Esquema para actualizar una venta existente. Todos los campos son opcionales."""
     client_name: str | None = Field(default=None, min_length=1, max_length=255)
     client_email: str | None = Field(default=None, max_length=254)
     document_type: str | None = Field(default=None, pattern=r"^(invoice|receipt|credit_note|debit_note)$")
@@ -68,6 +75,7 @@ class SaleUpdate(BaseModel):
 
 
 class SaleResponse(BaseModel):
+    """Esquema de respuesta con los datos completos de una venta."""
     id: str
     client_name: str
     client_email: str
@@ -86,6 +94,7 @@ class SaleResponse(BaseModel):
 
 
 class FinancialSummaryResponse(BaseModel):
+    """Esquema de respuesta con el balance resumido de ingresos y egresos por período."""
     total_purchases: Decimal
     total_sales: Decimal
     balance: Decimal

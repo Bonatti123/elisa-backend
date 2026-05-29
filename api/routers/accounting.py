@@ -1,3 +1,6 @@
+"""Router de contabilidad con operaciones CRUD de compras, ventas y resumen financiero.
+Todos los endpoints requieren permisos de administrador (is_staff).
+"""
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,6 +21,7 @@ router = APIRouter()
 
 
 def require_staff(user: User = Depends(get_current_user)) -> User:
+    """Dependencia que verifica que el usuario tenga permisos de staff."""
     if not user.is_staff:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -40,6 +44,7 @@ def list_purchases(
     limit: int = Query(default=100, ge=1, le=500),
     _: User = Depends(require_staff),
 ):
+    """Lista todas las compras activas con filtros por proveedor, tipo, categoría y fechas."""
     qs = Purchase.objects.filter(is_active=True)
     if provider_name:
         qs = qs.filter(provider_name__icontains=provider_name)
@@ -60,6 +65,7 @@ def get_purchase(
     purchase_id: str,
     _: User = Depends(require_staff),
 ):
+    """Obtiene el detalle de una compra por su ID."""
     try:
         purchase = Purchase.objects.get(id=purchase_id, is_active=True)
     except Purchase.DoesNotExist:
@@ -79,6 +85,7 @@ def create_purchase(
     body: PurchaseCreate,
     _: User = Depends(require_staff),
 ):
+    """Registra una nueva compra (boleta o factura de compra)."""
     purchase = Purchase.objects.create(**body.model_dump())
     return purchase
 
@@ -89,6 +96,7 @@ def update_purchase(
     body: PurchaseUpdate,
     _: User = Depends(require_staff),
 ):
+    """Actualiza los datos de una compra existente."""
     try:
         purchase = Purchase.objects.get(id=purchase_id, is_active=True)
     except Purchase.DoesNotExist:
@@ -108,6 +116,7 @@ def delete_purchase(
     purchase_id: str,
     _: User = Depends(require_staff),
 ):
+    """Eliminación lógica de una compra. Marca is_active=False."""
     try:
         purchase = Purchase.objects.get(id=purchase_id, is_active=True)
     except Purchase.DoesNotExist:
@@ -134,6 +143,7 @@ def list_sales(
     limit: int = Query(default=100, ge=1, le=500),
     _: User = Depends(require_staff),
 ):
+    """Lista todas las ventas activas con filtros por cliente, tipo, estado, categoría y fechas."""
     qs = Sale.objects.filter(is_active=True)
     if client_name:
         qs = qs.filter(client_name__icontains=client_name)
@@ -156,6 +166,7 @@ def get_sale(
     sale_id: str,
     _: User = Depends(require_staff),
 ):
+    """Obtiene el detalle de una venta por su ID."""
     try:
         sale = Sale.objects.get(id=sale_id, is_active=True)
     except Sale.DoesNotExist:
@@ -175,6 +186,7 @@ def create_sale(
     body: SaleCreate,
     _: User = Depends(require_staff),
 ):
+    """Registra una nueva venta (boleta o factura de venta)."""
     sale = Sale.objects.create(**body.model_dump())
     return sale
 
@@ -185,6 +197,7 @@ def update_sale(
     body: SaleUpdate,
     _: User = Depends(require_staff),
 ):
+    """Actualiza los datos de una venta existente."""
     try:
         sale = Sale.objects.get(id=sale_id, is_active=True)
     except Sale.DoesNotExist:
@@ -204,6 +217,7 @@ def delete_sale(
     sale_id: str,
     _: User = Depends(require_staff),
 ):
+    """Eliminación lógica de una venta. Marca is_active=False."""
     try:
         sale = Sale.objects.get(id=sale_id, is_active=True)
     except Sale.DoesNotExist:
@@ -224,6 +238,7 @@ def financial_summary(
     date_to: date = Query(...),
     _: User = Depends(require_staff),
 ):
+    """Resumen financiero: total de compras, ventas, balance y cantidades en un período."""
     purchases = Purchase.objects.filter(
         is_active=True,
         issue_date__gte=date_from,

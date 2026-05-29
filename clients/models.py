@@ -63,6 +63,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Purchase(models.Model):
+    """Modelo de compra: representa un comprobante de compra (boleta o factura)."""
+
     DOCUMENT_TYPE_CHOICES = [
         ("invoice", "Factura"),
         ("receipt", "Boleta"),
@@ -71,15 +73,15 @@ class Purchase(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    provider_name = models.CharField(max_length=255)
-    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)
-    document_number = models.CharField(max_length=100, blank=True, default="")
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    issue_date = models.DateField()
-    category = models.CharField(max_length=100, blank=True, default="")
-    attachment = models.CharField(max_length=500, blank=True, default="")
-    notes = models.TextField(blank=True, default="")
-    is_active = models.BooleanField(default=True)
+    provider_name = models.CharField(max_length=255)  # Nombre del proveedor
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)  # Tipo de comprobante
+    document_number = models.CharField(max_length=100, blank=True, default="")  # Número de comprobante
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Monto total
+    issue_date = models.DateField()  # Fecha de emisión
+    category = models.CharField(max_length=100, blank=True, default="")  # Categoría contable
+    attachment = models.CharField(max_length=500, blank=True, default="")  # Ruta del archivo adjunto
+    notes = models.TextField(blank=True, default="")  # Observaciones
+    is_active = models.BooleanField(default=True)  # Soft delete
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -92,6 +94,8 @@ class Purchase(models.Model):
 
 
 class Sale(models.Model):
+    """Modelo de venta: representa un comprobante de venta (boleta o factura)."""
+
     DOCUMENT_TYPE_CHOICES = [
         ("invoice", "Factura"),
         ("receipt", "Boleta"),
@@ -107,16 +111,16 @@ class Sale(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_name = models.CharField(max_length=255)
-    client_email = models.EmailField(blank=True, default="")
-    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)
-    document_number = models.CharField(max_length=100, blank=True, default="")
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    issue_date = models.DateField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    category = models.CharField(max_length=100, blank=True, default="")
-    notes = models.TextField(blank=True, default="")
-    is_active = models.BooleanField(default=True)
+    client_name = models.CharField(max_length=255)  # Nombre del cliente
+    client_email = models.EmailField(blank=True, default="")  # Correo del cliente
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)  # Tipo de comprobante
+    document_number = models.CharField(max_length=100, blank=True, default="")  # Número de comprobante
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Monto total
+    issue_date = models.DateField()  # Fecha de emisión
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")  # Estado de pago
+    category = models.CharField(max_length=100, blank=True, default="")  # Categoría contable
+    notes = models.TextField(blank=True, default="")  # Observaciones
+    is_active = models.BooleanField(default=True)  # Soft delete
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
