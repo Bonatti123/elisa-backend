@@ -41,9 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(blank=True, default="")
     first_name = models.CharField(max_length=150, blank=True, default="")
     last_name = models.CharField(max_length=150, blank=True, default="")
-    role = models.ForeignKey(
-        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
-    )
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -130,3 +128,40 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} {self.document_number} - {self.client_name}"
+
+
+# ─── AUDITORÍA INMUTABLE ─────────────────────────────────────────────
+# #BE027: Modelo de historial de cambios para asientos contables
+# Registra de forma automatizada las mutaciones, ediciones y cancelaciones
+# de comprobantes de compra y venta para asegurar la trazabilidad financiera.
+
+
+class AccountingEntryHistory(models.Model):
+    """#BE027: Historial inmutable de cambios en transacciones contables."""
+
+    ACTION_CHOICES = [
+        ("creado", "Creado"),
+        ("editado", "Editado"),
+        ("cancelado", "Cancelado"),
+    ]
+
+    TRANSACTION_TYPE_CHOICES = [
+        ("purchase", "Compra"),
+        ("sale", "Venta"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+    transaction_id = models.CharField(max_length=255)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    old_data = models.JSONField(default=dict, blank=True)
+    new_data = models.JSONField(default=dict, blank=True)
+    user_id = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "accounting_entry_history"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.get_transaction_type_display()} {self.transaction_id}"

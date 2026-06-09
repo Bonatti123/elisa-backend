@@ -1,6 +1,7 @@
-"""Punto de entrada de la API ELISA.
+"""#BE001: Punto de entrada de la API ELISA.
 Registra los routers, configura CORS y expone el health check.
 """
+
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 import django
+
 django.setup()
 
 from api.routers import accounting, auth
@@ -22,12 +24,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ELISA API",
-    description="API REST del sistema ERP ELISA - ELOMUX",
+    description="API REST del sistema ERP ELISA — ELOMUX",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# ─── CORS ─────────────────────────────────────────────────────────────
+# ─── CORS — Orígenes permitidos para el frontend ──────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,12 +41,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── ROUTERS ──────────────────────────────────────────────────────────
+# ─── ROUTERS — Registro de módulos de la API ─────────────────────
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(accounting.router, prefix="/api/v1/accounting", tags=["Accounting"])
 
 
 @app.get("/api/v1/health")
-def health():
-    """Endpoint de verificación de estado para monitoreo."""
+def health() -> dict:
+    """#BE002: Endpoint de verificación de estado para monitoreo."""
     return {"status": "ok", "version": "1.0.0"}
