@@ -41,9 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(blank=True, default="")
     first_name = models.CharField(max_length=150, blank=True, default="")
     last_name = models.CharField(max_length=150, blank=True, default="")
-    role = models.ForeignKey(
-        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
-    )
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,3 +58,110 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+class Purchase(models.Model):
+    """Modelo de compra: representa un comprobante de compra (boleta o factura)."""
+
+    DOCUMENT_TYPE_CHOICES = [
+        ("invoice", "Factura"),
+        ("receipt", "Boleta"),
+        ("credit_note", "Nota de crédito"),
+        ("debit_note", "Nota de débito"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider_name = models.CharField(max_length=255)  # Nombre del proveedor
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)  # Tipo de comprobante
+    document_number = models.CharField(max_length=100, blank=True, default="")  # Número de comprobante
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Monto total
+    issue_date = models.DateField()  # Fecha de emisión
+    category = models.CharField(max_length=100, blank=True, default="")  # Categoría contable
+    attachment = models.CharField(max_length=500, blank=True, default="")  # Ruta del archivo adjunto
+    notes = models.TextField(blank=True, default="")  # Observaciones
+    is_active = models.BooleanField(default=True)  # Soft delete
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "purchases"
+        ordering = ["-issue_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} {self.document_number} - {self.provider_name}"
+
+
+class Sale(models.Model):
+    """Modelo de venta: representa un comprobante de venta (boleta o factura)."""
+
+    DOCUMENT_TYPE_CHOICES = [
+        ("invoice", "Factura"),
+        ("receipt", "Boleta"),
+        ("credit_note", "Nota de crédito"),
+        ("debit_note", "Nota de débito"),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "Pendiente"),
+        ("paid", "Pagado"),
+        ("cancelled", "Anulado"),
+        ("partial", "Pago parcial"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client_name = models.CharField(max_length=255)  # Nombre del cliente
+    client_email = models.EmailField(blank=True, default="")  # Correo del cliente
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)  # Tipo de comprobante
+    document_number = models.CharField(max_length=100, blank=True, default="")  # Número de comprobante
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Monto total
+    issue_date = models.DateField()  # Fecha de emisión
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")  # Estado de pago
+    category = models.CharField(max_length=100, blank=True, default="")  # Categoría contable
+    notes = models.TextField(blank=True, default="")  # Observaciones
+    is_active = models.BooleanField(default=True)  # Soft delete
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "sales"
+        ordering = ["-issue_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} {self.document_number} - {self.client_name}"
+
+
+# ─── AUDITORÍA INMUTABLE ─────────────────────────────────────────────
+# #BE027: Modelo de historial de cambios para asientos contables
+# Registra de forma automatizada las mutaciones, ediciones y cancelaciones
+# de comprobantes de compra y venta para asegurar la trazabilidad financiera.
+
+
+class AccountingEntryHistory(models.Model):
+    """#BE027: Historial inmutable de cambios en transacciones contables."""
+
+    ACTION_CHOICES = [
+        ("creado", "Creado"),
+        ("editado", "Editado"),
+        ("cancelado", "Cancelado"),
+    ]
+
+    TRANSACTION_TYPE_CHOICES = [
+        ("purchase", "Compra"),
+        ("sale", "Venta"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+    transaction_id = models.CharField(max_length=255)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    old_data = models.JSONField(default=dict, blank=True)
+    new_data = models.JSONField(default=dict, blank=True)
+    user_id = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "accounting_entry_history"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.get_transaction_type_display()} {self.transaction_id}"

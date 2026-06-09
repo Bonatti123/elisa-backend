@@ -8,3 +8,7 @@ static/
 *.log
 .pytest_cache/
 db.sqlite3
+
+# Guía local del desarrollador (no se sube a GitHub)
+GUIA_LOCAL.md
+staticfiles/
