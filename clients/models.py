@@ -60,3 +60,71 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+# RF-35: Auditoría Transversal para Acciones Críticas
+# Entidad común que registra toda operación sensible del sistema
+# de forma inmutable y centralizada.
+class GlobalAuditLog(models.Model):
+    # Tipos de entidades auditables del sistema
+    ENTITY_TYPES = [
+        ("client", "Cliente"),
+        ("user", "Usuario"),
+        ("role", "Rol"),
+        ("web_type", "Tipo de Web"),
+        ("web_feature", "Característica"),
+        ("change_request", "Solicitud de Cambio"),
+        ("prospect", "Prospecto"),
+        ("payment", "Pago"),
+        ("system", "Sistema"),
+    ]
+    # Acciones críticas que se registran en la auditoría
+    ACTION_TYPES = [
+        ("create", "Creación"),
+        ("update", "Actualización"),
+        ("delete", "Eliminación"),
+        ("login", "Inicio de sesión"),
+        ("logout", "Cierre de sesión"),
+        ("approve", "Aprobación"),
+        ("reject", "Rechazo"),
+        ("convert", "Conversión"),
+        ("export", "Exportación"),
+        ("other", "Otro"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Entidad afectada (ej: "client", "user", "payment")
+    entity_type = models.CharField(max_length=50, choices=ENTITY_TYPES, db_index=True)
+    # ID de la entidad afectada (opcional, ej: recién creada)
+    entity_id = models.UUIDField(null=True, blank=True, db_index=True)
+    # Acción ejecutada (ej: "create", "update", "delete")
+    action = models.CharField(max_length=50, choices=ACTION_TYPES, db_index=True)
+    # Descripción legible de lo ocurrido
+    description = models.TextField(blank=True, default="")
+    # Cambios específicos en formato JSON (valor_anterior / valor_nuevo)
+    details = models.JSONField(default=dict, blank=True)
+    # Dirección IP desde donde se ejecutó la acción
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    # User-Agent del navegador/cliente que realizó la acción
+    user_agent = models.TextField(blank=True, default="")
+    # Usuario que ejecutó la acción (nullable por si el usuario se elimina)
+    performed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_logs"
+    )
+    # Marca temporal inmutable (se auto-asigna en la creación)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "global_audit_log"
+        ordering = ["-created_at"]
+        indexes = [
+            # Índice compuesto para consultas por entidad
+            models.Index(fields=["entity_type", "entity_id"]),
+            # Índice compuesto para consultas por acción + fecha
+            models.Index(fields=["action", "created_at"]),
+        ]
+        verbose_name = "Auditoría Global"
+        verbose_name_plural = "Auditorías Globales"
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.get_entity_type_display()} [{self.created_at}]"
