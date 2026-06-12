@@ -126,5 +126,17 @@ class GlobalAuditLog(models.Model):
         verbose_name = "Auditoría Global"
         verbose_name_plural = "Auditorías Globales"
 
+    # RF-35-T04: Proteccion del log contra modificacion o eliminacion.
+    # El log de auditoria es INMUTABLE: una vez creado no se puede
+    # editar ni borrar, ni siquiera desde el admin de Django.
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            super().save(*args, **kwargs)
+        else:
+            raise PermissionError("No se puede modificar un registro de auditoria")
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("No se puede eliminar un registro de auditoria")
+
     def __str__(self):
         return f"{self.get_action_display()} - {self.get_entity_type_display()} [{self.created_at}]"
