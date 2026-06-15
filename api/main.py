@@ -1,7 +1,11 @@
+import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from django.db import IntegrityError, OperationalError, DataError
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
@@ -9,6 +13,10 @@ import django
 django.setup()
 
 from api.routers import auth
+from api.exceptions import AppException
+from api.schemas.errors import ErrorResponse, ValidationErrorDetail, ValidationErrorResponse
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -33,6 +41,95 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ───────────────────────────────────────────────────────────
+# RF-37-T01 + RF-37-T03: Manejadores globales de errores
+# Cada handler captura un tipo específico de error y:
+#   1. Registra el detalle interno en los logs (nunca se expone al cliente)
+#   2. Devuelve una respuesta JSON con el formato estandarizado ErrorResponse
+#   3. En errores 500+ se loguea con nivel ERROR o CRITICAL para alertar al equipo
+# ───────────────────────────────────────────────────────────
+
+@app.exception_handler(AppException)
+def app_exception_handler(request: Request, exc: AppException):
+    """Error controlado del sistema (RF-37-T01).
+    Las excepciones AppException ya traen el mensaje limpio para el cliente.
+    Solo se loguean si son errores 500+ para no ensuciar los logs con errores esperados."""
+    if exc.code >= 500:
+        logger.error("AppException 500: %s | field=%s | path=%s", exc.detail, exc.field, request.url.path)
+    return JSONResponse(
+        status_code=exc.code,
+        content=ErrorResponse(detail=exc.detail, code=exc.code, field=exc.field).model_dump(),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Error de validación de Pydantic (422).
+    Convierte los errores internos de Pydantic en una lista de
+    ValidationErrorDetail con el campo y el mensaje en español."""
+    errors = []
+    for err in exc.errors():
+        field = ".".join(str(x) for x in err.get("loc", []))
+        msg = err.get("msg", "Error de validación")
+        errors.append(ValidationErrorDetail(field=field, detail=msg))
+    logger.warning("ValidationError en %s: %s", request.url.path, errors)
+    return JSONResponse(
+        status_code=422,
+        content=ValidationErrorResponse(errors=errors).model_dump(),
+    )
+
+
+@app.exception_handler(IntegrityError)
+def integrity_error_handler(request: Request, exc: IntegrityError):
+    """Error de integridad de base de datos (400).
+    Ocurre al intentar duplicar un registro único o violar una FK.
+    El detalle real del error solo va a los logs, no al cliente."""
+    logger.error("IntegrityError en %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=400,
+        content=ErrorResponse(detail="Error de integridad: el registro ya existe o tiene dependencias", code=400).model_dump(),
+    )
+
+
+@app.exception_handler(OperationalError)
+def operational_error_handler(request: Request, exc: OperationalError):
+    """Error operacional de base de datos (500).
+    Ocurre cuando la BD está caída, hay timeout de conexión, etc.
+    Nunca se expone el detalle técnico al cliente (RF-37-T03)."""
+    logger.error("OperationalError en %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(detail="Error en la base de datos", code=500).model_dump(),
+    )
+
+
+@app.exception_handler(DataError)
+def data_error_handler(request: Request, exc: DataError):
+    """Error de dato inválido en base de datos (422).
+    Ocurre cuando se intenta insertar un valor con tipo incorrecto
+    o que excede la longitud permitida."""
+    logger.warning("DataError en %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=422,
+        content=ErrorResponse(detail="Dato inválido en la base de datos", code=422).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+def generic_exception_handler(request: Request, exc: Exception):
+    """Error no controlado (500) — RF-37-T03.
+    Captura任何 excepción que no tenga un handler específico.
+    El stacktrace completo se guarda en logs con exc_info=True
+    pero el cliente solo recibe un mensaje genérico."""
+    logger.critical("Excepción no controlada en %s: %s", request.url.path, exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(detail="Error interno del servidor", code=500).model_dump(),
+    )
+
+# ───────────────────────────────────────────────────────────
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 
