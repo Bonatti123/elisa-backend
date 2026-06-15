@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -14,6 +15,8 @@ django.setup()
 from api.routers import auth
 from api.exceptions import AppException
 from api.schemas.errors import ErrorResponse, ValidationErrorDetail, ValidationErrorResponse
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -44,6 +47,9 @@ app.add_middleware(
 
 @app.exception_handler(AppException)
 def app_exception_handler(request: Request, exc: AppException):
+    """Error controlado del sistema. Se devuelve tal cual sin exponer internos."""
+    if exc.code >= 500:
+        logger.error("AppException 500: %s | field=%s | path=%s", exc.detail, exc.field, request.url.path)
     return JSONResponse(
         status_code=exc.code,
         content=ErrorResponse(detail=exc.detail, code=exc.code, field=exc.field).model_dump(),
@@ -52,10 +58,13 @@ def app_exception_handler(request: Request, exc: AppException):
 
 @app.exception_handler(RequestValidationError)
 def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Error de validación Pydantic. Solo se exponen los campos y mensajes de validación."""
     errors = []
     for err in exc.errors():
         field = ".".join(str(x) for x in err.get("loc", []))
-        errors.append(ValidationErrorDetail(field=field, detail=err.get("msg", "Error de validación")))
+        msg = err.get("msg", "Error de validación")
+        errors.append(ValidationErrorDetail(field=field, detail=msg))
+    logger.warning("ValidationError en %s: %s", request.url.path, errors)
     return JSONResponse(
         status_code=422,
         content=ValidationErrorResponse(errors=errors).model_dump(),
@@ -64,6 +73,8 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(IntegrityError)
 def integrity_error_handler(request: Request, exc: IntegrityError):
+    """Error de integridad de BD. Se registra el detalle interno pero no se expone."""
+    logger.error("IntegrityError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=400,
         content=ErrorResponse(detail="Error de integridad: el registro ya existe o tiene dependencias", code=400).model_dump(),
@@ -72,6 +83,8 @@ def integrity_error_handler(request: Request, exc: IntegrityError):
 
 @app.exception_handler(OperationalError)
 def operational_error_handler(request: Request, exc: OperationalError):
+    """Error operacional de BD. Se registra el detalle interno pero no se expone."""
+    logger.error("OperationalError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(detail="Error en la base de datos", code=500).model_dump(),
@@ -80,6 +93,8 @@ def operational_error_handler(request: Request, exc: OperationalError):
 
 @app.exception_handler(DataError)
 def data_error_handler(request: Request, exc: DataError):
+    """Error de dato inválido en BD. Se registra el detalle interno pero no se expone."""
+    logger.warning("DataError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=422,
         content=ErrorResponse(detail="Dato inválido en la base de datos", code=422).model_dump(),
@@ -88,6 +103,8 @@ def data_error_handler(request: Request, exc: DataError):
 
 @app.exception_handler(Exception)
 def generic_exception_handler(request: Request, exc: Exception):
+    """Error no controlado. Nunca se expone el stacktrace al cliente."""
+    logger.critical("Excepción no controlada en %s: %s", request.url.path, exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(detail="Error interno del servidor", code=500).model_dump(),
