@@ -11,6 +11,7 @@ from api.schemas.auth import (
     RefreshRequest,
     UserResponse,
 )
+from api.services.audit import registrar_auditoria
 from clients.models import User
 
 router = APIRouter()
@@ -87,6 +88,15 @@ def login(body: LoginRequest):
 
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
+
+    # RF-35: Registra el inicio de sesion en la auditoria global
+    registrar_auditoria(
+        entity_type="user",
+        entity_id=user.id,
+        action="login",
+        description=f"Inicio de sesion: {user.username}",
+        performed_by=user,
+    )
 
     return TokenResponse(
         access_token=access_token,
