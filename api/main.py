@@ -43,11 +43,19 @@ app.add_middleware(
 )
 
 
-# ─── Manejadores globales de errores — RF-37-T01 ──────────────
+# ───────────────────────────────────────────────────────────
+# RF-37-T01 + RF-37-T03: Manejadores globales de errores
+# Cada handler captura un tipo específico de error y:
+#   1. Registra el detalle interno en los logs (nunca se expone al cliente)
+#   2. Devuelve una respuesta JSON con el formato estandarizado ErrorResponse
+#   3. En errores 500+ se loguea con nivel ERROR o CRITICAL para alertar al equipo
+# ───────────────────────────────────────────────────────────
 
 @app.exception_handler(AppException)
 def app_exception_handler(request: Request, exc: AppException):
-    """Error controlado del sistema. Se devuelve tal cual sin exponer internos."""
+    """Error controlado del sistema (RF-37-T01).
+    Las excepciones AppException ya traen el mensaje limpio para el cliente.
+    Solo se loguean si son errores 500+ para no ensuciar los logs con errores esperados."""
     if exc.code >= 500:
         logger.error("AppException 500: %s | field=%s | path=%s", exc.detail, exc.field, request.url.path)
     return JSONResponse(
@@ -58,7 +66,9 @@ def app_exception_handler(request: Request, exc: AppException):
 
 @app.exception_handler(RequestValidationError)
 def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Error de validación Pydantic. Solo se exponen los campos y mensajes de validación."""
+    """Error de validación de Pydantic (422).
+    Convierte los errores internos de Pydantic en una lista de
+    ValidationErrorDetail con el campo y el mensaje en español."""
     errors = []
     for err in exc.errors():
         field = ".".join(str(x) for x in err.get("loc", []))
@@ -73,7 +83,9 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(IntegrityError)
 def integrity_error_handler(request: Request, exc: IntegrityError):
-    """Error de integridad de BD. Se registra el detalle interno pero no se expone."""
+    """Error de integridad de base de datos (400).
+    Ocurre al intentar duplicar un registro único o violar una FK.
+    El detalle real del error solo va a los logs, no al cliente."""
     logger.error("IntegrityError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=400,
@@ -83,7 +95,9 @@ def integrity_error_handler(request: Request, exc: IntegrityError):
 
 @app.exception_handler(OperationalError)
 def operational_error_handler(request: Request, exc: OperationalError):
-    """Error operacional de BD. Se registra el detalle interno pero no se expone."""
+    """Error operacional de base de datos (500).
+    Ocurre cuando la BD está caída, hay timeout de conexión, etc.
+    Nunca se expone el detalle técnico al cliente (RF-37-T03)."""
     logger.error("OperationalError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=500,
@@ -93,7 +107,9 @@ def operational_error_handler(request: Request, exc: OperationalError):
 
 @app.exception_handler(DataError)
 def data_error_handler(request: Request, exc: DataError):
-    """Error de dato inválido en BD. Se registra el detalle interno pero no se expone."""
+    """Error de dato inválido en base de datos (422).
+    Ocurre cuando se intenta insertar un valor con tipo incorrecto
+    o que excede la longitud permitida."""
     logger.warning("DataError en %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=422,
@@ -103,14 +119,17 @@ def data_error_handler(request: Request, exc: DataError):
 
 @app.exception_handler(Exception)
 def generic_exception_handler(request: Request, exc: Exception):
-    """Error no controlado. Nunca se expone el stacktrace al cliente."""
+    """Error no controlado (500) — RF-37-T03.
+    Captura任何 excepción que no tenga un handler específico.
+    El stacktrace completo se guarda en logs con exc_info=True
+    pero el cliente solo recibe un mensaje genérico."""
     logger.critical("Excepción no controlada en %s: %s", request.url.path, exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(detail="Error interno del servidor", code=500).model_dump(),
     )
 
-# ─────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 

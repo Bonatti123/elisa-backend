@@ -1,9 +1,13 @@
-# Utilidades para respuestas consistentes de la API — RF-37-T02
+# RF-37-T02: Helpers de respuesta para la API
+# Funciones utilitarias que garantizan que todas las respuestas
+# de la API sigan la misma estructura: { data, message?, pagination? }
+# Esto evita que cada endpoint invente su propio formato.
 from typing import Optional
 
 
 def success_response(data, message: Optional[str] = None):
-    """Respuesta exitosa estándar (200)."""
+    """Respuesta exitosa estándar con código 200.
+    Uso: return success_response(cliente, "Cliente actualizado")"""
     body = {"data": data}
     if message:
         body["message"] = message
@@ -11,12 +15,15 @@ def success_response(data, message: Optional[str] = None):
 
 
 def created_response(data, message: str = "Recurso creado exitosamente"):
-    """Respuesta para creación exitosa (201)."""
+    """Respuesta para creación exitosa con código 201.
+    Uso: return created_response(cliente)"""
     return {"data": data, "message": message}
 
 
 def paginated_response(items, total: int, page: int, page_size: int, message: Optional[str] = None):
-    """Respuesta paginada con metadatos."""
+    """Respuesta paginada con metadatos de paginación.
+    Incluye total, page, page_size y total_pages calculado automáticamente.
+    Uso: return paginated_response(items, total, page, page_size)"""
     body = {
         "data": items,
         "pagination": {
