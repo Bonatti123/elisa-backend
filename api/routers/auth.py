@@ -10,6 +10,7 @@ from api.schemas.auth import (
     TokenResponse,
     RefreshRequest,
     UserResponse,
+    LogoutResponse,
 )
 from clients.models import User
 
@@ -136,12 +137,33 @@ def refresh(body: RefreshRequest):
 
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)):
+    """Devuelve el perfil del usuario autenticado con la información completa
+    de su rol (id, nombre y permisos) para que el frontend pueda determinar
+    la navegación y las acciones permitidas según el módulo y privilegios.
+    """
     return UserResponse(
         id=str(user.id),
         username=user.username,
         email=user.email,
         first_name=user.first_name,
         last_name=user.last_name,
-        role=user.role.name if user.role else None,
+        role={
+            "id": str(user.role.id),
+            "name": user.role.name,
+            "permissions": user.role.permissions,
+        }
+        if user.role
+        else None,
         is_active=user.is_active,
     )
+
+
+@router.post("/logout", response_model=LogoutResponse)
+def logout(user: User = Depends(get_current_user)):
+    """Cierra la sesión del usuario autenticado.
+    En una arquitectura stateless con JWT, el cierre de sesión se maneja
+    del lado del cliente eliminando el token de almacenamiento local.
+    Este endpoint confirma la acción y puede extenderse en el futuro para
+    agregar una lista de tokens revocados si se requiere invalidación activa.
+    """
+    return LogoutResponse(message="Sesión cerrada")
