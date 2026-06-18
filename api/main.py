@@ -110,6 +110,12 @@ app.include_router(web_features.router, prefix="/api/v1/web-features", tags=["We
 app.include_router(users.router, prefix="/api/v1", tags=["Users"])
 
 
+@app.get("/")
+def root():
+    """Endpoint raíz — estado de la API para monitoreo."""
+    return {"status": "ok", "version": "1.0.0", "app": "ELISA API"}
+
+
 @app.get("/api/v1/health")
 def health():
     return {"status": "ok", "version": "1.0.0"}
