@@ -1,10 +1,41 @@
+# ==============================================================
+# .GITIGNORE — La "Lista Negra" estándar y preventiva
+#
+# Estos archivos NO se suben al repositorio público porque:
+# - Tienen contraseñas y accesos secretos (*.env)
+# - Son muy pesados y se pueden regenerar fácilmente (venv/)
+# - Son temporales compilados por Python (__pycache__)
+# - Son basura visual creada por editores de código y Windows/Mac
+# ==============================================================
+
+# Entorno virtual — pesa mucho, se regenera con pip install
 venv/
+env/
+
+# Variables de entorno — tienen contraseñas, nunca se suben
+# Cada servidor tiene su propio .env
 .env
+
+# Archivos compilados de Python — se generan solos
 __pycache__/
 *.pyc
 *.pyo
-.DS_Store
-static/
-*.log
-.pytest_cache/
+
+# Base de datos local de prueba — el servidor usa PostgreSQL
 db.sqlite3
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Static files collected
+static/
+
+# Pytest cache
+.pytest_cache/
