@@ -85,7 +85,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.username
 
 
-<<<<<<< HEAD
 class WebType(models.Model):
     """Catálogo de tipos de web con precios base por plan (alquiler/venta).
     Almacena los distintos tipos de sitios web que ELOMUX ofrece a sus
