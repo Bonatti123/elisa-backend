@@ -1,10 +1,7 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    BaseUserManager,
-    PermissionsMixin,
-)
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
 
 
@@ -54,38 +51,41 @@ class Role(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Modelo de usuario del sistema con autenticación por username.
-    Representa a cada colaborador registrado en la plataforma ELOMUX.
-    Se autentica mediante username y password, y está asociado a un rol
-    que define sus permisos dentro del sistema.
-    """
-
+    """Modelo personalizado de usuario para el sistema ERP ELISA - ELOMUX"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(blank=True, default="")
+    email = models.EmailField(unique=True, null=True, blank=True, default=None)
     first_name = models.CharField(max_length=150, blank=True, default="")
     last_name = models.CharField(max_length=150, blank=True, default="")
     role = models.ForeignKey(
-        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
+        Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users"  # Rol asignado al colaborador
     )
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)  # Indica si el colaborador está activo en el sistema
+    is_staff = models.BooleanField(default=False)  # Indica si el colaborador tiene acceso al panel de administración
+    created_at = models.DateTimeField(auto_now_add=True)  # Fecha y hora de creación del registro
+    updated_at = models.DateTimeField(auto_now=True)  # Fecha y hora de la última modificación del registro
 
     objects = UserManager()
 
-    USERNAME_FIELD = "username"
+    USERNAME_FIELD = "username"  # Campo usado para autenticación
     REQUIRED_FIELDS = []
 
     class Meta:
-        db_table = "users"
-        ordering = ["username"]
+        db_table = "users"  # Nombre de la tabla en la base de datos
+        ordering = ["username"]  # Ordenamiento por nombre de usuario
+
+    def clean(self):
+        """Valida la unicidad del username y email antes de guardar"""
+        if User.objects.filter(username=self.username).exclude(pk=self.pk).exists():  # Verificar si el username ya está registrado
+            raise ValidationError({"username": "El nombre de usuario ya existe en el sistema"})
+        if self.email and User.objects.filter(email=self.email).exclude(pk=self.pk).exists():  # Verificar si el email ya está registrado
+            raise ValidationError({"email": "El correo electrónico ya está registrado en el sistema"})
 
     def __str__(self):
         return self.username
 
 
+<<<<<<< HEAD
 class WebType(models.Model):
     """Catálogo de tipos de web con precios base por plan (alquiler/venta).
     Almacena los distintos tipos de sitios web que ELOMUX ofrece a sus
@@ -402,3 +402,42 @@ class ChangeRequest(models.Model):
 
     def __str__(self):
         return f"{self.campo} - {self.estado}"
+
+
+class Collaborator(models.Model):
+    """Modelo que representa un colaborador de ELOMUX con datos personales, credenciales, rol, área, estado y CUPE"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="collaborator_profile"
+    )
+    phone = models.CharField(max_length=20, blank=True, default="")
+    document_number = models.CharField(max_length=50, unique=True, null=True, blank=True, default=None)
+    area = models.CharField(max_length=150, blank=True, default="")
+    cupe = models.CharField(max_length=50, blank=True, default="")
+    hire_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "collaborators"
+        ordering = ["user__first_name", "user__last_name"]
+        verbose_name = "Colaborador"
+        verbose_name_plural = "Colaboradores"
+
+    def clean(self):
+        if self.document_number and Collaborator.objects.filter(document_number=self.document_number).exclude(pk=self.pk).exists():
+            raise ValidationError({"document_number": "El número de documento ya existe en el sistema"})
+
+    def save(self, *args, **kwargs):
+        if not self.cupe:
+            ultimo = Collaborator.objects.order_by("-created_at").first()
+            if ultimo and ultimo.cupe and ultimo.cupe.startswith("ELO-"):
+                numero = int(ultimo.cupe.replace("ELO-", "")) + 1
+            else:
+                numero = 1
+            self.cupe = f"ELO-{numero:05d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username

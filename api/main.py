@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 import django
 django.setup()
 
-from api.routers import auth, clients, web_types, web_features
+from api.routers import auth, clients, web_types, web_features, users
 from api.exceptions import AppException
 from api.schemas.errors import ErrorResponse, ValidationErrorDetail, ValidationErrorResponse
 
@@ -107,6 +107,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(clients.router, prefix="/api/v1/clients", tags=["Clients"])
 app.include_router(web_types.router, prefix="/api/v1/web-types", tags=["Web Types"])
 app.include_router(web_features.router, prefix="/api/v1/web-features", tags=["Web Features"])
+app.include_router(users.router, prefix="/api/v1", tags=["Users"])
 
 
 @app.get("/api/v1/health")
