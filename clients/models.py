@@ -5,7 +5,10 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 
 
 class UserManager(BaseUserManager):
+    """Manager personalizado para crear usuarios y superusuarios."""
+
     def create_user(self, username, password=None, **extra_fields):
+        """Crea un usuario normal con username y contraseña."""
         if not username:
             raise ValueError("El username es obligatorio")
         user = self.model(username=username, **extra_fields)
@@ -14,12 +17,16 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, username, password=None, **extra_fields):
+        """Crea un superusuario con permisos de staff y superuser."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(username, password, **extra_fields)
 
 
 class Role(models.Model):
+    """Modelo que representa un rol dentro del sistema de permisos.
+    Cada rol tiene un nombre único y un conjunto de permisos en JSON.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, default="")
@@ -37,6 +44,9 @@ class Role(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """Modelo personalizado de usuario que usa username como identificador principal.
+    Reemplaza el User predeterminado de Django para integrarse con FastAPI.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True, default="")
@@ -64,6 +74,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Client(models.Model):
+    """Modelo que representa un cliente del sistema.
+    Almacena información de contacto, tipo de cliente y frecuencia de pago.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True, default="")
@@ -83,6 +96,10 @@ class Client(models.Model):
 
 
 class Campaign(models.Model):
+    """Modelo que representa una campaña de marketing.
+    Define el periodo de vigencia (start_date / end_date) y el presupuesto
+    disponible. Las promociones pueden asociarse a una campaña.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
@@ -102,6 +119,11 @@ class Campaign(models.Model):
 
 
 class Promotion(models.Model):
+    """Modelo que representa una promoción o descuento aplicable a clientes.
+    Puede ser de tipo porcentaje o monto fijo, con condiciones como monto
+    mínimo/máximo, tipo de cliente, tipo de web y frecuencia de pago.
+    Opcionalmente se asocia a una Campaign para campañas de marketing.
+    """
     APPLIES_TO_CHOICES = [
         ("quote", "Cotización"),
         ("service", "Servicio"),
@@ -150,6 +172,11 @@ class Promotion(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """Intercepta el guardado para validar que las fechas de la promoción
+        estén dentro del rango de la campaña asociada (si existe).
+        Lanza ValidationError si valid_from es anterior a campaign.start_date
+        o si valid_to es posterior a campaign.end_date.
+        """
         if self.campaign_id is not None:
             try:
                 campaign = Campaign.objects.get(id=self.campaign_id)

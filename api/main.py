@@ -1,3 +1,6 @@
+"""Punto de entrada principal de la API ELISA.
+Configura FastAPI con CORS, registro de routers y health check.
+"""
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -40,4 +43,5 @@ app.include_router(promotions.router, prefix="/api/marketing", tags=["Marketing"
 
 @app.get("/api/v1/health")
 def health():
+    """Endpoint de verificación de salud del servidor."""
     return {"status": "ok", "version": "1.0.0"}

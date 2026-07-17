@@ -1,5 +1,6 @@
 """Router de promociones y campañas con operaciones CRUD y evaluación.
 Incluye: gestión de promociones, campañas y endpoint de evaluación.
+Todos los endpoints requieren autenticación.
 """
 from decimal import Decimal
 
@@ -9,6 +10,7 @@ from api.routers.auth import get_current_user
 from api.schemas.promotions import (
     CampaignCreate,
     CampaignResponse,
+    CampaignUpdate,
     EvaluateRequest,
     EvaluateResponse,
     PromotionCreate,
@@ -21,8 +23,13 @@ from clients.models import Campaign, Promotion, User
 router = APIRouter()
 
 
+# ─── DEPENDENCIAS DE SEGURIDAD ──────────────────────────────────────────
+
+
 def require_superadmin(user: User = Depends(get_current_user)) -> User:
-    """Dependencia que verifica que el usuario sea superadmin."""
+    """Verifica que el usuario autenticado sea superadmin (L1).
+    Si no lo es, retorna error 403 Forbidden.
+    """
     if not user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -31,7 +38,7 @@ def require_superadmin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-# ─── PROMOCIONES ────────────────────────────────────────────────────────
+# ─── ENDPOINTS DE PROMOCIONES ───────────────────────────────────────────
 
 
 @router.get("/promotions/", response_model=list[PromotionResponse])
@@ -39,8 +46,11 @@ def list_promotions(
     is_active: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
+    _: User = Depends(get_current_user),
 ):
-    """Lista todas las promociones con filtro opcional por estado activo."""
+    """Lista todas las promociones con filtro opcional por estado activo.
+    Requiere autenticación. Devuelve las promociones ordenadas por fecha de creación.
+    """
     qs = Promotion.objects.all()
     if is_active is not None:
         qs = qs.filter(is_active=is_active)
@@ -49,8 +59,13 @@ def list_promotions(
 
 
 @router.get("/promotions/{promotion_id}", response_model=PromotionResponse)
-def get_promotion(promotion_id: str):
-    """Obtiene el detalle de una promoción por su ID."""
+def get_promotion(
+    promotion_id: str,
+    _: User = Depends(get_current_user),
+):
+    """Obtiene el detalle completo de una promoción por su ID.
+    Requiere autenticación. Retorna 404 si no existe.
+    """
     try:
         promotion = Promotion.objects.select_related("campaign").get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -70,8 +85,12 @@ def create_promotion(
     body: PromotionCreate,
     _: User = Depends(require_superadmin),
 ):
-    """Crea una nueva promoción (solo superadmin)."""
+    """Crea una nueva promoción en el sistema.
+    Solo los superadmins pueden crear promociones.
+    Si se proporciona un campaign_id, valida que la campaña exista.
+    """
     data = body.model_dump()
+    # Si se indicó una campaña, la busca y la vincula a la promoción
     campaign_id = data.pop("campaign_id", None)
     if campaign_id:
         try:
@@ -92,7 +111,10 @@ def update_promotion(
     body: PromotionUpdate,
     _: User = Depends(require_superadmin),
 ):
-    """Actualiza una promoción existente (solo superadmin)."""
+    """Actualiza una promoción existente con actualización parcial.
+    Solo los superadmins pueden editar promociones.
+    Solo se actualizan los campos que se envían en el body.
+    """
     try:
         promotion = Promotion.objects.get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -101,6 +123,7 @@ def update_promotion(
             detail="Promoción no encontrada",
         )
 
+    # Extrae los campos enviados y los aplica uno por uno
     data = body.model_dump(exclude_unset=True)
     campaign_id = data.pop("campaign_id", None)
     if campaign_id is not None:
@@ -124,7 +147,10 @@ def delete_promotion(
     promotion_id: str,
     _: User = Depends(require_superadmin),
 ):
-    """Eliminación lógica de una promoción (solo superadmin)."""
+    """Realiza la eliminación lógica de una promoción.
+    Solo los superadmins pueden eliminar promociones.
+    No borra el registro, solo marca is_active=False para preservar el historial.
+    """
     try:
         promotion = Promotion.objects.get(id=promotion_id)
     except Promotion.DoesNotExist:
@@ -137,10 +163,13 @@ def delete_promotion(
 
 
 @router.post("/promotions/evaluate", response_model=EvaluateResponse)
-def evaluate_promotions(body: EvaluateRequest):
-    """
-    Evalúa las promociones aplicables para un cliente y contexto.
-    Retorna la lista de promociones que aplican y la mejor opción.
+def evaluate_promotions(
+    body: EvaluateRequest,
+    _: User = Depends(get_current_user),
+):
+    """Evalúa todas las promociones aplicables para un cliente y contexto dado.
+    Requiere autenticación. Retorna la lista de promociones que aplican
+    y cuál es la mejor opción según el mayor ahorro posible.
     """
     result = PromotionsEngine.evaluate_promotions(
         client_id=body.client_id,
@@ -152,7 +181,7 @@ def evaluate_promotions(body: EvaluateRequest):
     return result
 
 
-# ─── CAMPAÑAS ───────────────────────────────────────────────────────────
+# ─── ENDPOINTS DE CAMPAÑAS ──────────────────────────────────────────────
 
 
 @router.get("/campaigns/", response_model=list[CampaignResponse])
@@ -160,8 +189,11 @@ def list_campaigns(
     is_active: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
+    _: User = Depends(get_current_user),
 ):
-    """Lista todas las campañas con filtro opcional por estado activo."""
+    """Lista todas las campañas de marketing con filtro opcional por estado activo.
+    Requiere autenticación. Devuelve las campañas ordenadas por fecha de creación.
+    """
     qs = Campaign.objects.all()
     if is_active is not None:
         qs = qs.filter(is_active=is_active)
@@ -170,8 +202,13 @@ def list_campaigns(
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse)
-def get_campaign(campaign_id: str):
-    """Obtiene el detalle de una campaña por su ID."""
+def get_campaign(
+    campaign_id: str,
+    _: User = Depends(get_current_user),
+):
+    """Obtiene el detalle completo de una campaña por su ID.
+    Requiere autenticación. Retorna 404 si no existe.
+    """
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
@@ -191,7 +228,9 @@ def create_campaign(
     body: CampaignCreate,
     _: User = Depends(require_superadmin),
 ):
-    """Crea una nueva campaña de marketing (solo superadmin)."""
+    """Crea una nueva campaña de marketing en el sistema.
+    Solo los superadmins pueden crear campañas.
+    """
     campaign = Campaign.objects.create(**body.model_dump())
     return campaign
 
@@ -199,10 +238,13 @@ def create_campaign(
 @router.put("/campaigns/{campaign_id}", response_model=CampaignResponse)
 def update_campaign(
     campaign_id: str,
-    body: CampaignCreate,
+    body: CampaignUpdate,
     _: User = Depends(require_superadmin),
 ):
-    """Actualiza una campaña existente (solo superadmin)."""
+    """Actualiza una campaña existente con actualización parcial.
+    Solo los superadmins pueden editar campañas.
+    Solo se actualizan los campos que se envían en el body.
+    """
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
@@ -210,7 +252,10 @@ def update_campaign(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaña no encontrada",
         )
-    for attr, value in body.model_dump().items():
+
+    # Aplica solo los campos que el usuario envió, no sobreescribe los que faltan
+    data = body.model_dump(exclude_unset=True)
+    for attr, value in data.items():
         setattr(campaign, attr, value)
     campaign.save()
     return campaign
@@ -221,7 +266,10 @@ def delete_campaign(
     campaign_id: str,
     _: User = Depends(require_superadmin),
 ):
-    """Eliminación lógica de una campaña (solo superadmin)."""
+    """Realiza la eliminación lógica de una campaña.
+    Solo los superadmins pueden eliminar campañas.
+    No borra el registro, solo marca is_active=False para preservar el historial.
+    """
     try:
         campaign = Campaign.objects.get(id=campaign_id)
     except Campaign.DoesNotExist:
