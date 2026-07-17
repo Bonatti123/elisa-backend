@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
-app.include_router(promotions.router, prefix="/api/v1/marketing", tags=["Marketing"])
+app.include_router(promotions.router, prefix="/api/marketing", tags=["Marketing"])
 
 
 @app.get("/api/v1/health")
